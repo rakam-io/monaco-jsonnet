@@ -6,8 +6,17 @@
 
 import Thenable = monaco.Thenable;
 import IWorkerContext = monaco.worker.IWorkerContext;
+import Jsonnet from 'jsonnet-compiler';
+import * as Json from 'jsonc-parser';
 
 import * as jsonService from 'vscode-json-languageservice';
+import {Uri, worker} from "monaco-editor-core";
+import IMirrorModel = worker.IMirrorModel;
+import {SchemaRequestService} from "vscode-json-languageservice";
+import {FailedParsedDocument} from "jsonnet-compiler/lib/umd/lexical-analysis/service";
+import {ParseFailure, LexFailure} from "jsonnet-compiler/lib/umd/lexical-analysis/service";
+
+let jsonnet = new Jsonnet();
 
 let defaultSchemaRequestService;
 if (typeof fetch !== 'undefined') {
@@ -44,84 +53,117 @@ export class JSONWorker {
 	private _languageService: jsonService.LanguageService;
 	private _languageSettings: jsonService.LanguageSettings;
 	private _languageId: string;
+	private _schemaRequestService: SchemaRequestService;
 
 	constructor(ctx: IWorkerContext, createData: ICreateData) {
 		this._ctx = ctx;
 		this._languageSettings = createData.languageSettings;
 		this._languageId = createData.languageId;
+		this._schemaRequestService = createData.enableSchemaRequest && defaultSchemaRequestService;
 		this._languageService = jsonService.getLanguageService({
-			schemaRequestService: createData.enableSchemaRequest && defaultSchemaRequestService,
+			schemaRequestService: this._schemaRequestService,
 			promiseConstructor: PromiseAdapter
 		});
 		this._languageService.configure(this._languageSettings);
 	}
 
-	doValidation(uri: string): Thenable<jsonService.Diagnostic[]> {
-		let document = this._getTextDocument(uri);
-		if (document) {
-			let jsonDocument = this._languageService.parseJSONDocument(document);
-			return this._languageService.doValidation(document, jsonDocument);
+	doValidation(uri: Uri): Thenable<jsonService.Diagnostic[]> {
+		const models = this._ctx.getMirrorModels();
+		const path = this.toPath(uri)
+		const model = models.filter(model => this.toPath(model.uri) === path)[0]
+		let documents = this._getTextDocuments(models);
+		let fileContent = documents.get(path);
+
+		let parsedDocument = jsonnet.parse(path, fileContent);
+		if(parsedDocument instanceof FailedParsedDocument) {
+			let msg, loc
+			if(parsedDocument.parse instanceof LexFailure) {
+				const error = (parsedDocument.parse as LexFailure).lexError;
+				loc = error.loc;
+				msg = error.msg;
+			} else
+			if(parsedDocument.parse instanceof ParseFailure) {
+				const error = (parsedDocument.parse as ParseFailure).parseError;
+				loc = error.loc;
+				msg = error.msg;
+			} else {
+				throw Error()
+			}
+
+			const range = jsonService.Range.create(loc.begin.line - 1, loc.begin.column - 1, loc.end.line - 1, loc.end.column);
+			const diagnostic = jsonService.Diagnostic.create(range, `INVALID SYNTAX: ${msg}`, 1, 0);
+			return Promise.resolve(new Array(diagnostic))
 		}
-		return Promise.resolve([]);
+
+		let extCodes : Map<string, string> = new Map()
+		let output;
+		try {
+			output = jsonnet.compile(path, fileContent, documents, extCodes)
+		} catch (e) {
+			return
+
+			return Promise.resolve(new Array())
+		}
+
+		const textDocument = jsonService.TextDocument.create(this.toPath(model.uri), this._languageId, model.version, output);
+
+		const jsonDocument = this._languageService.parseJSONDocument(textDocument);
+		let validationXhr = this._languageService.doValidation(textDocument, jsonDocument);
+
+		return validationXhr.then(data => {
+			return data.map(diagnosis => {
+				// @ts-ignore - because the interface is not exposed
+				let startNode = jsonDocument.getNodeFromOffset(textDocument.offsetAt(diagnosis.range.start));
+				// @ts-ignore
+				// let endNode = jsonDocument.getNodeFromOffset(textDocument.offsetAt(range.end));
+
+				let startPath = Json.getNodePath(startNode)
+				let range, message;
+				if(startPath.length === 0) {
+					range = jsonService.Range.create(0, 0, 0, 1);
+					message = diagnosis.message;
+				} else {
+					// @ts-ignore
+					let jsonnetPath = jsonnet.findNodeFromJsonPath(parsedDocument.parse, startPath);
+					if(jsonnetPath == null) {
+						range = jsonService.Range.create(0, 0, 0, 1);
+					} else {
+						let begin = jsonnetPath.loc.begin;
+						let end = jsonnetPath.loc.end;
+						range = jsonService.Range.create(begin.line - 1, begin.column - 1, end.line - 1, end.column);
+					}
+
+					let value = Json.getNodeValue(startNode);
+					message = diagnosis.message + '\n' + value
+				}
+
+				return jsonService.Diagnostic.create(range, message, diagnosis.severity, diagnosis.code, diagnosis.source, diagnosis.relatedInformation)
+			})
+		});
 	}
-	doComplete(uri: string, position: jsonService.Position): Thenable<jsonService.CompletionList> {
-		let document = this._getTextDocument(uri);
-		let jsonDocument = this._languageService.parseJSONDocument(document);
-		return this._languageService.doComplete(document, position, jsonDocument);
-	}
-	doResolve(item: jsonService.CompletionItem): Thenable<jsonService.CompletionItem> {
-		return this._languageService.doResolve(item);
-	}
-	doHover(uri: string, position: jsonService.Position): Thenable<jsonService.Hover> {
-		let document = this._getTextDocument(uri);
-		let jsonDocument = this._languageService.parseJSONDocument(document);
-		return this._languageService.doHover(document, position, jsonDocument);
-	}
-	format(uri: string, range: jsonService.Range, options: jsonService.FormattingOptions): Thenable<jsonService.TextEdit[]> {
-		let document = this._getTextDocument(uri);
-		let textEdits = this._languageService.format(document, range, options);
-		return Promise.resolve(textEdits);
-	}
+
 	resetSchema(uri: string): Thenable<boolean> {
 		return Promise.resolve(this._languageService.resetSchema(uri));
 	}
-	findDocumentSymbols(uri: string): Thenable<jsonService.SymbolInformation[]> {
-		let document = this._getTextDocument(uri);
-		let jsonDocument = this._languageService.parseJSONDocument(document);
-		let symbols = this._languageService.findDocumentSymbols(document, jsonDocument);
-		return Promise.resolve(symbols);
+
+	doHover(uri: string, position: jsonService.Position): Thenable<jsonService.Hover> {
+		// let jsonDocument = this._languageService.parseJSONDocument(document);
+		// return this._languageService.doHover(document, position, jsonDocument);
+		return Promise.resolve(null);
 	}
-	findDocumentColors(uri: string): Thenable<jsonService.ColorInformation[]> {
-		let document = this._getTextDocument(uri);
-		let jsonDocument = this._languageService.parseJSONDocument(document);
-		let colorSymbols = this._languageService.findDocumentColors(document, jsonDocument);
-		return Promise.resolve(colorSymbols);
+
+	private toPath(uri : Uri): string {
+		return uri.authority + uri.path
 	}
-	getColorPresentations(uri: string, color: jsonService.Color, range: jsonService.Range): Thenable<jsonService.ColorPresentation[]> {
-		let document = this._getTextDocument(uri);
-		let jsonDocument = this._languageService.parseJSONDocument(document);
-		let colorPresentations = this._languageService.getColorPresentations(document, jsonDocument, color, range);
-		return Promise.resolve(colorPresentations);
-	}
-	getFoldingRanges(uri: string, context?: { rangeLimit?: number; }): Thenable<jsonService.FoldingRange[]> {
-		let document = this._getTextDocument(uri);
-		let ranges = this._languageService.getFoldingRanges(document, context);
-		return Promise.resolve(ranges);
-	}
-	getSelectionRanges(uri: string, positions: jsonService.Position[]): Thenable<jsonService.SelectionRange[]> {
-		let document = this._getTextDocument(uri);
-		let jsonDocument = this._languageService.parseJSONDocument(document);
-		let ranges = this._languageService.getSelectionRanges(document, positions, jsonDocument);
-		return Promise.resolve(ranges);
-	}
-	private _getTextDocument(uri: string): jsonService.TextDocument {
-		let models = this._ctx.getMirrorModels();
-		for (let model of models) {
-			if (model.uri.toString() === uri) {
-				return jsonService.TextDocument.create(uri, this._languageId, model.version, model.getValue());
-			}
-		}
-		return null;
+
+	private _getTextDocuments(models : IMirrorModel[]): Map<string, string> {
+		const files : Map<string, string> = new Map()
+
+		models.forEach(model => {
+			files.set(this.toPath(model.uri), model.getValue())
+		})
+
+		return files
 	}
 }
 

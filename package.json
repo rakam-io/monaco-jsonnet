@@ -9,7 +9,7 @@
     "install-service-next": "npm install vscode-json-languageservice@next -f -D && npm install vscode-languageserver-types@next -f -D",
     "install-service-local": "npm install ../vscode-json-languageservice -f -D && npm install ../vscode-languageserver-node/types -f -D"
   },
-  "author": "Microsoft Corporation",
+  "author": "Microsoft Corporation & Rakam Inc.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -19,7 +19,7 @@
     "url": "https://github.com/Microsoft/monaco-json/issues"
   },
   "devDependencies": {
-    "jsonc-parser": "^2.2.0",
+    "jsonnet-compiler": "file:../jsonnet-compiler",
     "monaco-editor-core": "0.20.0",
     "monaco-languages": "1.10.0",
     "monaco-plugin-helpers": "^1.0.2",
@@ -27,5 +27,8 @@
     "typescript": "3.7.5",
     "terser": "^4.6.3",
     "vscode-json-languageservice": "3.4.11"
+  },
+  "dependencies": {
+    "express": "^4.17.1"
   }
 }

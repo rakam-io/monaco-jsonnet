@@ -61,7 +61,7 @@ export class WorkerManager {
 			this._worker = monaco.editor.createWebWorker<JSONWorker>({
 
 				// module that exports the create() method and returns a `JSONWorker` instance
-				moduleId: 'vs/language/json/jsonWorker',
+				moduleId: 'vs/language/jsonnet/jsonWorker',
 
 				label: this._defaults.languageId,
 

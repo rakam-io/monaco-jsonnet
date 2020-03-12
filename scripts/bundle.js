@@ -27,7 +27,7 @@ bundleOne('jsonWorker');
 function bundleOne(moduleId, exclude) {
 	requirejs.optimize({
 		baseUrl: 'out/amd/',
-		name: 'vs/language/json/' + moduleId,
+		name: 'vs/language/jsonnet/' + moduleId,
 		out: 'release/dev/' + moduleId + '.js',
 		exclude: exclude,
 		paths: {
@@ -47,8 +47,8 @@ function bundleOne(moduleId, exclude) {
 			location: path.join(REPO_ROOT, 'node_modules/vscode-languageserver-textdocument/lib/umd'),
 			main: 'main'
 		}, {
-			name: 'jsonc-parser',
-			location: path.join(REPO_ROOT, 'node_modules/jsonc-parser/lib/umd'),
+			name: 'jsonnet-parser',
+			location: path.join(REPO_ROOT, 'node_modules/jsonnet-parser/lib/umd'),
 			main: 'main'
 		}, {
 			name: 'vscode-uri',

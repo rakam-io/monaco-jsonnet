@@ -25,7 +25,7 @@ helpers.packageESM({
 	],
 	destinationFolderSimplification: {
 		'node_modules': '_deps',
-		'jsonc-parser/lib/esm': 'jsonc-parser',
+		'jsonnet-parser/lib/esm': 'jsonnet-parser',
 		'vscode-languageserver-types/lib/esm': 'vscode-languageserver-types',
 		'vscode-uri/lib/esm': 'vscode-uri',
 		'vscode-json-languageservice/lib/esm': 'vscode-json-languageservice'

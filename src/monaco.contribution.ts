@@ -11,20 +11,20 @@ import IEvent = monaco.IEvent;
 
 // --- JSON configuration and defaults ---------
 
-export class LanguageServiceDefaultsImpl implements monaco.languages.json.LanguageServiceDefaults {
+export class LanguageServiceDefaultsImpl implements monaco.languages.jsonnet.LanguageServiceDefaults {
 
-	private _onDidChange = new Emitter<monaco.languages.json.LanguageServiceDefaults>();
-	private _diagnosticsOptions: monaco.languages.json.DiagnosticsOptions;
-	private _modeConfiguration: monaco.languages.json.ModeConfiguration;
+	private _onDidChange = new Emitter<monaco.languages.jsonnet.LanguageServiceDefaults>();
+	private _diagnosticsOptions: monaco.languages.jsonnet.DiagnosticsOptions;
+	private _modeConfiguration: monaco.languages.jsonnet.ModeConfiguration;
 	private _languageId: string;
 
-	constructor(languageId: string, diagnosticsOptions: monaco.languages.json.DiagnosticsOptions, modeConfiguration: monaco.languages.json.ModeConfiguration) {
+	constructor(languageId: string, diagnosticsOptions: monaco.languages.jsonnet.DiagnosticsOptions, modeConfiguration: monaco.languages.jsonnet.ModeConfiguration) {
 		this._languageId = languageId;
 		this.setDiagnosticsOptions(diagnosticsOptions);
 		this.setModeConfiguration(modeConfiguration);
 	}
 
-	get onDidChange(): IEvent<monaco.languages.json.LanguageServiceDefaults> {
+	get onDidChange(): IEvent<monaco.languages.jsonnet.LanguageServiceDefaults> {
 		return this._onDidChange.event;
 	}
 
@@ -32,54 +32,52 @@ export class LanguageServiceDefaultsImpl implements monaco.languages.json.Langua
 		return this._languageId;
 	}
 
-	get modeConfiguration(): monaco.languages.json.ModeConfiguration {
+	get modeConfiguration(): monaco.languages.jsonnet.ModeConfiguration {
 		return this._modeConfiguration;
 	}
 
-	get diagnosticsOptions(): monaco.languages.json.DiagnosticsOptions {
+	get diagnosticsOptions(): monaco.languages.jsonnet.DiagnosticsOptions {
 		return this._diagnosticsOptions;
 	}
 
-	setDiagnosticsOptions(options: monaco.languages.json.DiagnosticsOptions): void {
+	setDiagnosticsOptions(options: monaco.languages.jsonnet.DiagnosticsOptions): void {
 		this._diagnosticsOptions = options || Object.create(null);
 		this._onDidChange.fire(this);
 	}
 
-	setModeConfiguration(modeConfiguration: monaco.languages.json.ModeConfiguration): void {
+	setModeConfiguration(modeConfiguration: monaco.languages.jsonnet.ModeConfiguration): void {
 		this._modeConfiguration = modeConfiguration || Object.create(null);
 		this._onDidChange.fire(this);
 	};
 }
 
-const diagnosticDefault: Required<monaco.languages.json.DiagnosticsOptions> = {
+const diagnosticDefault: Required<monaco.languages.jsonnet.DiagnosticsOptions> = {
 	validate: true,
 	allowComments: true,
 	schemas: [],
 	enableSchemaRequest: false
 };
 
-const modeConfigurationDefault: Required<monaco.languages.json.ModeConfiguration> = {
+const modeConfigurationDefault: Required<monaco.languages.jsonnet.ModeConfiguration> = {
 	documentFormattingEdits: true,
 	documentRangeFormattingEdits: true,
-	completionItems: true,
-	hovers: true,
-	documentSymbols: true,
-	tokens: true,
-	colors: true,
-	foldingRanges: true,
+	completionItems: false,
+	hovers: false,
+	documentSymbols: false,
+	foldingRanges: false,
 	diagnostics: true,
-	selectionRanges: true
+	selectionRanges: false
 }
 
-const jsonDefaults = new LanguageServiceDefaultsImpl('json', diagnosticDefault, modeConfigurationDefault);
+const jsonnetDefaults = new LanguageServiceDefaultsImpl('jsonnet', diagnosticDefault, modeConfigurationDefault);
 
 // Export API
-function createAPI(): typeof monaco.languages.json {
+function createAPI(): typeof monaco.languages.jsonnet {
 	return {
-		jsonDefaults: jsonDefaults
+		jsonnetDefaults: jsonnetDefaults
 	}
 }
-monaco.languages.json = createAPI();
+monaco.languages.jsonnet = createAPI();
 
 // --- Registration to monaco editor ---
 
@@ -88,12 +86,11 @@ function getMode(): Promise<typeof mode> {
 }
 
 monaco.languages.register({
-	id: 'json',
-	extensions: ['.json', '.bowerrc', '.jshintrc', '.jscsrc', '.eslintrc', '.babelrc', '.har'],
-	aliases: ['JSON', 'json'],
+	id: 'jsonnet',
+	extensions: ['.jsonnet', '.libsonnet'],
 	mimetypes: ['application/json'],
 });
 
-monaco.languages.onLanguage('json', () => {
-	getMode().then(mode => mode.setupMode(jsonDefaults));
+monaco.languages.onLanguage('jsonnet', () => {
+	getMode().then(mode => mode.setupMode(jsonnetDefaults));
 });

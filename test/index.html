@@ -4,6 +4,8 @@
 	<meta http-equiv="X-UA-Compatible" content="IE=edge" />
 	<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
 	<link rel="stylesheet" data-name="vs/editor/editor.main" href="../node_modules/monaco-editor-core/dev/vs/editor/editor.main.css">
+	<script src="../node_modules/vscode-languageserver-types/lib/umd/main.d.ts"></script>
+	<script src="../src/compiler/index.js"></script>
 </head>
 <body>
 
@@ -13,16 +15,32 @@
 <script>
 	// Loading basic-languages to get the json language definition
 	var paths = {
-		'vs/basic-languages': '../node_modules/monaco-languages/release/dev',
-		'vs/language/json': '../release/dev',
-		'vs': '../node_modules/monaco-editor-core/dev/vs'
+		// 'vs/basic-languages': '../node_modules/monaco-languages/release/dev',
+		'vs/language/jsonnet': '../out/amd',
+		'jsonnet-parser': '../node_modules/jsonnet-parser/lib/umd/main',
+		'immutable': '../node_modules/jsonnet-compiler/node_modules/immutable/dist/immutable',
+		'jsonnet-compiler': '../node_modules/jsonnet-compiler/lib/umd/index',
+		'compiler': '../node_modules/jsonnet-compiler/lib/umd/compiler',
+		'lexical-analysis': '../node_modules/jsonnet-compiler/lib/umd/lexical-analysis',
+		'jsonc-parser': '../node_modules/jsonc-parser/lib/umd/main',
+		'vscode-json-languageservice': '../node_modules/vscode-json-languageservice/lib/umd/jsonLanguageService',
+		'vscode-languageserver-types': '../node_modules/vscode-languageserver-types/lib/umd/main',
+		'vscode-languageserver-textdocument': '../node_modules/vscode-languageserver-textdocument/lib/umd/main',
+		'jsonLanguageTypes': '../node_modules/vscode-json-languageservice/lib/umd/jsonLanguageTypes',
+		'vscode-nls': '../out/amd/fillers/vscode-nls',
+		'vscode-uri': '../node_modules/vscode-uri/lib/umd/index',
+		'services': '../node_modules/vscode-json-languageservice/lib/umd/services',
+		'parser': '../node_modules/vscode-json-languageservice/lib/umd/parser',
+		'utils': '../node_modules/vscode-json-languageservice/lib/umd/utils',
+		'impl': '../node_modules/jsonc-parser/lib/umd/impl',
+		'vs/base/worker': '../node_modules/monaco-editor-core/dev/vs/base/worker',
 	};
 	if (document.location.protocol === 'http:') {
 		// Add support for running local http server
 		let testIndex = document.location.pathname.indexOf('/test/');
 		if (testIndex !== -1) {
 			let prefix = document.location.pathname.substr(0, testIndex);
-			paths['vs/language/json'] = prefix + '/release/dev';
+			paths['vs/language/jsonnet'] = prefix + '/out/amd';
 		}
 	}
 	var require = {
@@ -35,81 +53,31 @@
 
 <script>
 	require([
-		'vs/basic-languages/monaco.contribution',
-		'vs/language/json/monaco.contribution'
+		// 'vs/basic-languages/monaco.contribution',
+		'vs/language/jsonnet/monaco.contribution'
 	], function() {
-		var editor = monaco.editor.create(document.getElementById('container'), {
-			value: [
-				'{',
-				'	"type": "team",',
-				'	"test": {',
-				'		"testPage": "tools/testing/run-tests.htm",',
-				'		"enabled": true',
-				'	},',
-				'	"search": {',
-				'		"excludeFolders": [',
-				'			".git",',
-				'			"node_modules",',
-				'			"tools/bin",',
-				'			"tools/counts",',
-				'			"tools/policheck",',
-				'			"tools/tfs_build_extensions",',
-				'			"tools/testing/jscoverage",',
-				'			"tools/testing/qunit",',
-				'			"tools/testing/chutzpah",',
-				'			"server.net"',
-				'		]',
-				'	},',
-				'	"languages": {',
-				'		"vs.languages.typescript": {',
-				'			"validationSettings": [{',
-				'				"scope":"/",',
-				'				"noImplicitAny":true,',
-				'				"noLib":false,',
-				'				"extraLibs":[],',
-				'				"semanticValidation":true,',
-				'				"syntaxValidation":true,',
-				'				"codeGenTarget":"ES5",',
-				'				"moduleGenTarget":"",',
-				'				"lint": {',
-				'					"emptyBlocksWithoutComment": "warning",',
-				'					"curlyBracketsMustNotBeOmitted": "warning",',
-				'					"comparisonOperatorsNotStrict": "warning",',
-				'					"missingSemicolon": "warning",',
-				'					"unknownTypeOfResults": "warning",',
-				'					"semicolonsInsteadOfBlocks": "warning",',
-				'					"functionsInsideLoops": "warning",',
-				'					"functionsWithoutReturnType": "warning",',
-				'					"tripleSlashReferenceAlike": "warning",',
-				'					"unusedImports": "warning",',
-				'					"unusedVariables": "warning",',
-				'					"unusedFunctions": "warning",',
-				'					"unusedMembers": "warning"',
-				'				}',
-				'			},',
-				'			{',
-				'				"scope":"/client",',
-				'				"baseUrl":"/client",',
-				'				"moduleGenTarget":"amd"',
-				'			},',
-				'			{',
-				'				"scope":"/server",',
-				'				"moduleGenTarget":"commonjs"',
-				'			},',
-				'			{',
-				'				"scope":"/build",',
-				'				"moduleGenTarget":"commonjs"',
-				'			},',
-				'			{',
-				'				"scope":"/node_modules/nake",',
-				'				"moduleGenTarget":"commonjs"',
-				'			}],',
-				'			"allowMultipleWorkers": true',
-				'		}',
-				'	}',
-				'}',
-			].join('\n'),
-			language: 'json'
+		monaco.languages.jsonnet.jsonnetDefaults.setDiagnosticsOptions({
+			validate: true,
+			enableSchemaRequest: true,
+			schemas: [{
+				uri: "http://myserver/foo-schema.json",
+				fileMatch: ["*.model.jsonnet"],
+				schema: {
+					$ref: "http://127.0.0.1:8000/test/model.schema.json"
+				}
+			}]
+		});
+
+		const test = monaco.editor.createModel('{\n' +
+				'\t"test": 1\n' +
+				'}', 'jsonnet', monaco.Uri.parse(`git://test.model.jsonnet`));
+
+		const test1 = monaco.editor.createModel('{\n' +
+				'\t"test": 1\n' +
+				'}', 'jsonnet', monaco.Uri.parse(`git://test1.model.jsonnet`));
+
+		const editor = monaco.editor.create(document.getElementById('container'), {
+			model: test
 		});
 	});
 </script>

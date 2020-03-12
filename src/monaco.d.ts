@@ -3,7 +3,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-declare module monaco.languages.json {
+declare module monaco.languages.jsonnet {
 	export interface DiagnosticsOptions {
 		/**
 		 * If set, the validator will be enabled and perform syntax validation as well as schema based validation.
@@ -63,16 +63,6 @@ declare module monaco.languages.json {
 		readonly documentSymbols?: boolean;
 
 		/**
-		 * Defines whether the built-in tokens provider is enabled.
-		 */
-		readonly tokens?: boolean;
-
-		/**
-		 * Defines whether the built-in color provider is enabled.
-		 */
-		readonly colors?: boolean;
-
-		/**
 		 * Defines whether the built-in foldingRange provider is enabled.
 		 */
 		readonly foldingRanges?: boolean;
@@ -97,5 +87,5 @@ declare module monaco.languages.json {
 		setModeConfiguration(modeConfiguration: ModeConfiguration): void;
 	}
 
-	export var jsonDefaults: LanguageServiceDefaults;
+	export var jsonnetDefaults: LanguageServiceDefaults;
 }
