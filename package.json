@@ -1,7 +1,7 @@
 {
-  "name": "monaco-json",
+  "name": "monaco-jsonnet",
   "version": "2.9.0",
-  "description": "JSON plugin for the Monaco Editor",
+  "description": "Jsonnet plugin for the Monaco Editor",
   "scripts": {
     "compile": "mrmdir ./out && tsc -p ./src/tsconfig.json && tsc -p ./src/tsconfig.esm.json",
     "watch": "tsc -p ./src --watch",
@@ -9,17 +9,17 @@
     "install-service-next": "npm install vscode-json-languageservice@next -f -D && npm install vscode-languageserver-types@next -f -D",
     "install-service-local": "npm install ../vscode-json-languageservice -f -D && npm install ../vscode-languageserver-node/types -f -D"
   },
-  "author": "Microsoft Corporation & Rakam Inc.",
+  "author": "Rakam Inc.",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Microsoft/monaco-json"
+    "url": "https://github.com/rakam-io/monaco-jsonnet"
   },
   "bugs": {
-    "url": "https://github.com/Microsoft/monaco-json/issues"
+    "url": "https://github.com/rakam-io/monaco-jsonnet/issues"
   },
   "devDependencies": {
-    "jsonnet-compiler": "file:../jsonnet-compiler",
+    "gopher-jsonnet": "1.0.3",
     "monaco-editor-core": "0.20.0",
     "monaco-languages": "1.10.0",
     "monaco-plugin-helpers": "^1.0.2",
@@ -27,8 +27,5 @@
     "typescript": "3.7.5",
     "terser": "^4.6.3",
     "vscode-json-languageservice": "3.4.11"
-  },
-  "dependencies": {
-    "express": "^4.17.1"
   }
 }

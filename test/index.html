@@ -5,7 +5,6 @@
 	<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
 	<link rel="stylesheet" data-name="vs/editor/editor.main" href="../node_modules/monaco-editor-core/dev/vs/editor/editor.main.css">
 	<script src="../node_modules/vscode-languageserver-types/lib/umd/main.d.ts"></script>
-	<script src="../src/compiler/index.js"></script>
 </head>
 <body>
 
@@ -17,11 +16,7 @@
 	var paths = {
 		// 'vs/basic-languages': '../node_modules/monaco-languages/release/dev',
 		'vs/language/jsonnet': '../out/amd',
-		'jsonnet-parser': '../node_modules/jsonnet-parser/lib/umd/main',
-		'immutable': '../node_modules/jsonnet-compiler/node_modules/immutable/dist/immutable',
-		'jsonnet-compiler': '../node_modules/jsonnet-compiler/lib/umd/index',
-		'compiler': '../node_modules/jsonnet-compiler/lib/umd/compiler',
-		'lexical-analysis': '../node_modules/jsonnet-compiler/lib/umd/lexical-analysis',
+		'gopher-jsonnet': '../node_modules/gopher-jsonnet/index',
 		'jsonc-parser': '../node_modules/jsonc-parser/lib/umd/main',
 		'vscode-json-languageservice': '../node_modules/vscode-json-languageservice/lib/umd/jsonLanguageService',
 		'vscode-languageserver-types': '../node_modules/vscode-languageserver-types/lib/umd/main',
@@ -68,8 +63,8 @@
 			}]
 		});
 
-		const test = monaco.editor.createModel('{\n' +
-				'\t"test": 1\n' +
+		const test = monaco.editor.createModel('' +
+				'local a = import "./test1.model.jsonnet";\n{\n"test": a\n' +
 				'}', 'jsonnet', monaco.Uri.parse(`git://test.model.jsonnet`));
 
 		const test1 = monaco.editor.createModel('{\n' +
@@ -77,7 +72,8 @@
 				'}', 'jsonnet', monaco.Uri.parse(`git://test1.model.jsonnet`));
 
 		const editor = monaco.editor.create(document.getElementById('container'), {
-			model: test
+			model: test,
+			theme: "vs-dark",
 		});
 	});
 </script>

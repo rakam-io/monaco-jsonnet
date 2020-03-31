@@ -9,8 +9,6 @@ import * as mode from './jsonMode';
 import Emitter = monaco.Emitter;
 import IEvent = monaco.IEvent;
 
-// --- JSON configuration and defaults ---------
-
 export class LanguageServiceDefaultsImpl implements monaco.languages.jsonnet.LanguageServiceDefaults {
 
 	private _onDidChange = new Emitter<monaco.languages.jsonnet.LanguageServiceDefaults>();
@@ -88,7 +86,7 @@ function getMode(): Promise<typeof mode> {
 monaco.languages.register({
 	id: 'jsonnet',
 	extensions: ['.jsonnet', '.libsonnet'],
-	mimetypes: ['application/json'],
+	mimetypes: ['application/jsonnet'],
 });
 
 monaco.languages.onLanguage('jsonnet', () => {

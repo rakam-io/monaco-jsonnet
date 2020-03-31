@@ -6,17 +6,14 @@
 
 import Thenable = monaco.Thenable;
 import IWorkerContext = monaco.worker.IWorkerContext;
-import Jsonnet from 'jsonnet-compiler';
+import jsonnet, {JsonnetError} from './jsonnet';
 import * as Json from 'jsonc-parser';
 
 import * as jsonService from 'vscode-json-languageservice';
 import {Uri, worker} from "monaco-editor-core";
 import IMirrorModel = worker.IMirrorModel;
 import {SchemaRequestService} from "vscode-json-languageservice";
-import {FailedParsedDocument} from "jsonnet-compiler/lib/umd/lexical-analysis/service";
-import {ParseFailure, LexFailure} from "jsonnet-compiler/lib/umd/lexical-analysis/service";
-
-let jsonnet = new Jsonnet();
+import JsonnetVM from "./jsonnet";
 
 let defaultSchemaRequestService;
 if (typeof fetch !== 'undefined') {
@@ -54,8 +51,10 @@ export class JSONWorker {
 	private _languageSettings: jsonService.LanguageSettings;
 	private _languageId: string;
 	private _schemaRequestService: SchemaRequestService;
+	private jsonnet: JsonnetVM;
 
 	constructor(ctx: IWorkerContext, createData: ICreateData) {
+		this.jsonnet = new JsonnetVM()
 		this._ctx = ctx;
 		this._languageSettings = createData.languageSettings;
 		this._languageId = createData.languageId;
@@ -67,42 +66,45 @@ export class JSONWorker {
 		this._languageService.configure(this._languageSettings);
 	}
 
+	private getDiagnosticFromJsonnetError(error : JsonnetError) {
+		let range;
+		if(error.ast == null) {
+			range = jsonService.Range.create(0, 0, 0, 1);
+		} else {
+			range = this.jsonnet.getLocationOfNode(error.ast)
+		}
+
+		return jsonService.Diagnostic.create(range, `${error.message}`, 1, 0);
+	}
+
 	doValidation(uri: Uri): Thenable<jsonService.Diagnostic[]> {
 		const models = this._ctx.getMirrorModels();
 		const path = this.toPath(uri)
+
 		const model = models.filter(model => this.toPath(model.uri) === path)[0]
 		let documents = this._getTextDocuments(models);
-		let fileContent = documents.get(path);
 
-		let parsedDocument = jsonnet.parse(path, fileContent);
-		if(parsedDocument instanceof FailedParsedDocument) {
-			let msg, loc
-			if(parsedDocument.parse instanceof LexFailure) {
-				const error = (parsedDocument.parse as LexFailure).lexError;
-				loc = error.loc;
-				msg = error.msg;
-			} else
-			if(parsedDocument.parse instanceof ParseFailure) {
-				const error = (parsedDocument.parse as ParseFailure).parseError;
-				loc = error.loc;
-				msg = error.msg;
-			} else {
-				throw Error()
+		let ast;
+		try {
+			ast = this.jsonnet.parse(path, documents);
+		} catch (e) {
+			if(e instanceof JsonnetError) {
+				return Promise.resolve(new Array(this.getDiagnosticFromJsonnetError(e)))
 			}
 
-			const range = jsonService.Range.create(loc.begin.line - 1, loc.begin.column - 1, loc.end.line - 1, loc.end.column);
-			const diagnostic = jsonService.Diagnostic.create(range, `INVALID SYNTAX: ${msg}`, 1, 0);
-			return Promise.resolve(new Array(diagnostic))
+			throw e
 		}
 
 		let extCodes : Map<string, string> = new Map()
 		let output;
 		try {
-			output = jsonnet.compile(path, fileContent, documents, extCodes)
+			output = this.jsonnet.compile(path, documents, extCodes, ast)
 		} catch (e) {
-			return
+			if(e instanceof JsonnetError) {
+				return Promise.resolve(new Array(this.getDiagnosticFromJsonnetError(e)))
+			}
 
-			return Promise.resolve(new Array())
+			throw e
 		}
 
 		const textDocument = jsonService.TextDocument.create(this.toPath(model.uri), this._languageId, model.version, output);
@@ -123,14 +125,12 @@ export class JSONWorker {
 					range = jsonService.Range.create(0, 0, 0, 1);
 					message = diagnosis.message;
 				} else {
-					// @ts-ignore
-					let jsonnetPath = jsonnet.findNodeFromJsonPath(parsedDocument.parse, startPath);
+					let rootNode = this.jsonnet.findRootNode(ast);
+					let jsonnetPath = this.jsonnet.findNodeFromJsonPath(rootNode, startPath);
 					if(jsonnetPath == null) {
 						range = jsonService.Range.create(0, 0, 0, 1);
 					} else {
-						let begin = jsonnetPath.loc.begin;
-						let end = jsonnetPath.loc.end;
-						range = jsonService.Range.create(begin.line - 1, begin.column - 1, end.line - 1, end.column);
+						range = this.jsonnet.getLocationOfNode(jsonnetPath)
 					}
 
 					let value = Json.getNodeValue(startNode);
@@ -164,6 +164,11 @@ export class JSONWorker {
 		})
 
 		return files
+	}
+
+	format(content: string, options: monaco.languages.FormattingOptions) : Thenable<jsonService.TextEdit[]> {
+		let textEdits = [];
+		return Promise.resolve(textEdits);
 	}
 }
 

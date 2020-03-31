@@ -1,7 +1,3 @@
-/*---------------------------------------------------------------------------------------------
- *  Copyright (c) Microsoft Corporation. All rights reserved.
- *  Licensed under the MIT License. See License.txt in the project root for license information.
- *--------------------------------------------------------------------------------------------*/
 'use strict';
 
 import { LanguageServiceDefaultsImpl } from './monaco.contribution';
@@ -15,7 +11,6 @@ import IDisposable = monaco.IDisposable;
 import CancellationToken = monaco.CancellationToken;
 import Position = monaco.Position;
 import Range = monaco.Range;
-import IRange = monaco.IRange;
 
 export interface WorkerAccessor {
 	(...more: Uri[]): Thenable<JSONWorker>
@@ -107,7 +102,7 @@ export class DiagnosticsAdapter {
 			});
 		}).then(undefined, err => {
 			console.error(err);
-		});
+		})
 	}
 }
 
@@ -205,5 +200,34 @@ export class HoverAdapter implements monaco.languages.HoverProvider {
 				contents: toMarkedStringArray(info.contents)
 			};
 		});
+	}
+}
+
+export class DocumentFormattingEditProvider implements monaco.languages.DocumentFormattingEditProvider {
+
+	constructor(private _worker: WorkerAccessor) {
+	}
+
+	public provideDocumentFormattingEdits(model: monaco.editor.IReadOnlyModel, options: monaco.languages.FormattingOptions, token: CancellationToken): Thenable<monaco.editor.ISingleEditOperation[]> {
+		const resource = model.uri;
+
+		return this._worker(resource).then(worker => {
+			return worker.format(resource.toString(), options).then(edits => {
+				if (!edits || edits.length === 0) {
+					return;
+				}
+				return edits.map(toTextEdit);
+			});
+		});
+	}
+}
+
+function toTextEdit(textEdit: jsonService.TextEdit): monaco.editor.ISingleEditOperation {
+	if (!textEdit) {
+		return void 0;
+	}
+	return {
+		range: toRange(textEdit.range),
+		text: textEdit.newText
 	}
 }
