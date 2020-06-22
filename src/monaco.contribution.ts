@@ -8,6 +8,8 @@ import * as mode from './jsonMode';
 
 import Emitter = monaco.Emitter;
 import IEvent = monaco.IEvent;
+import {extensions} from "./jsonnet";
+import JsonnetWorker = monaco.languages.jsonnet.JsonnetWorker;
 
 export class LanguageServiceDefaultsImpl implements monaco.languages.jsonnet.LanguageServiceDefaults {
 
@@ -51,9 +53,11 @@ export class LanguageServiceDefaultsImpl implements monaco.languages.jsonnet.Lan
 
 const diagnosticDefault: Required<monaco.languages.jsonnet.DiagnosticsOptions> = {
 	validate: true,
-	allowComments: true,
+	libraries: [],
 	schemas: [],
-	enableSchemaRequest: false
+	enableSchemaRequest: false,
+	extVars: new Map(),
+	tlaVars: new Map(),
 };
 
 const modeConfigurationDefault: Required<monaco.languages.jsonnet.ModeConfiguration> = {
@@ -72,7 +76,8 @@ const jsonnetDefaults = new LanguageServiceDefaultsImpl('jsonnet', diagnosticDef
 // Export API
 function createAPI(): typeof monaco.languages.jsonnet {
 	return {
-		jsonnetDefaults: jsonnetDefaults
+		jsonnetDefaults: jsonnetDefaults,
+		getWorker: getWorker
 	}
 }
 monaco.languages.jsonnet = createAPI();
@@ -85,10 +90,14 @@ function getMode(): Promise<typeof mode> {
 
 monaco.languages.register({
 	id: 'jsonnet',
-	extensions: ['.jsonnet', '.libsonnet'],
+	extensions: extensions,
 	mimetypes: ['application/jsonnet'],
 });
 
 monaco.languages.onLanguage('jsonnet', () => {
 	getMode().then(mode => mode.setupMode(jsonnetDefaults));
 });
+
+function getWorker(): Promise<(...uris: monaco.Uri[]) => Promise<JsonnetWorker>> {
+	return getMode().then(mode => mode.getWorker());
+}

@@ -15,7 +15,7 @@ helpers.packageESM({
 	entryPoints: [
 		'monaco.contribution.js',
 		'jsonMode.js',
-		'json.worker.js'
+		'jsonnet.worker.js'
 	],
 	resolveAlias: {
 		'vscode-nls': path.join(REPO_ROOT, "out/esm/fillers/vscode-nls.js")
@@ -25,7 +25,7 @@ helpers.packageESM({
 	],
 	destinationFolderSimplification: {
 		'node_modules': '_deps',
-		'gopher-jsonnet/index': 'gopher-jsonnet',
+		'gopher-jsonnet/esm/index': 'gopher-jsonnet',
 		'vscode-languageserver-types/lib/esm': 'vscode-languageserver-types',
 		'vscode-uri/lib/esm': 'vscode-uri',
 		'vscode-json-languageservice/lib/esm': 'vscode-json-languageservice'

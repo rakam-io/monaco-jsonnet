@@ -5,19 +5,19 @@
 'use strict';
 
 import { LanguageServiceDefaultsImpl } from './monaco.contribution';
-import { JSONWorker } from './jsonWorker';
+import {JsonnetWorkerImpl} from "./jsonnetWorker";
 
 const STOP_WHEN_IDLE_FOR = 2 * 60 * 1000; // 2min
 
 export class WorkerManager {
 
 	private _defaults: LanguageServiceDefaultsImpl;
-	private _idleCheckInterval: number;
+	private _idleCheckInterval;
 	private _lastUsedTime: number;
 	private _configChangeListener: monaco.IDisposable;
 
-	private _worker: monaco.editor.MonacoWebWorker<JSONWorker>;
-	private _client: Promise<JSONWorker>;
+	private _worker: monaco.editor.MonacoWebWorker<JsonnetWorkerImpl>;
+	private _client: Promise<JsonnetWorkerImpl>;
 
 	constructor(defaults: LanguageServiceDefaultsImpl) {
 		this._defaults = defaults;
@@ -51,13 +51,13 @@ export class WorkerManager {
 		}
 	}
 
-	private _getClient(): Promise<JSONWorker> {
+	private _getClient(): Promise<JsonnetWorkerImpl> {
 		this._lastUsedTime = Date.now();
 
 		if (!this._client) {
-			this._worker = monaco.editor.createWebWorker<JSONWorker>({
-				// module that exports the create() method and returns a `JSONWorker` instance
-				moduleId: 'vs/language/jsonnet/jsonWorker',
+			this._worker = monaco.editor.createWebWorker<JsonnetWorkerImpl>({
+				// module that exports the create() method and returns a `JsonnetWorkerImpl` instance
+				moduleId: 'vs/language/jsonnet/jsonnetWorker',
 
 				label: this._defaults.languageId,
 
@@ -69,14 +69,14 @@ export class WorkerManager {
 				}
 			});
 
-			this._client = <Promise<JSONWorker>><any>this._worker.getProxy();
+			this._client = <Promise<JsonnetWorkerImpl>><any>this._worker.getProxy();
 		}
 
 		return this._client;
 	}
 
-	getLanguageServiceWorker(...resources: monaco.Uri[]): Promise<JSONWorker> {
-		let _client: JSONWorker;
+	getLanguageServiceWorker(...resources: monaco.Uri[]): Promise<JsonnetWorkerImpl> {
+		let _client: JsonnetWorkerImpl;
 		return this._getClient().then((client) => {
 			_client = client
 		}).then(_ => {

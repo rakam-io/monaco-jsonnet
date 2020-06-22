@@ -1,51 +1,65 @@
 'use strict';
 
-import jsonnetPackage from 'gopher-jsonnet'
-import {errors} from 'gopher-jsonnet'
+import jsonnetPackage, {errors} from 'gopher-jsonnet'
 import * as jsonService from "vscode-json-languageservice";
 import normalize from './path-normalize'
+import Library = monaco.languages.jsonnet.Library;
 
 type FileMap = Map<string, string>;
-type AST = object;
+export type AST = object;
+type Loc = object;
 
 export class JsonnetError {
-    ast: object;
+    loc: object;
     message: string;
 
-    constructor(message: string, ast: AST | null) {
-        debugger
+    constructor(message: string, loc: Loc | null) {
         this.message = message;
-        this.ast = ast
+        this.loc = loc
     }
 }
-
-type Error = { message: string, loc: object };
-type Failable<R, E> = { isError: true; error: E; } | { isError: false; value: R; }
 
 type nodeType = '*ast.Array' | '*ast.Binary' | '*ast.Unary' | '*ast.Conditional'
     | '*ast.DesugaredObject' | '*ast.Error' | '*ast.Index' | '*ast.Import' | '*ast.ImportStr'
     | '*ast.LiteralBoolean' | '*ast.LiteralNull' | '*ast.LiteralNumber' | '*ast.LiteralString' | '*ast.Local'
     | '*ast.Self' | '*ast.Var' | '*ast.SuperIndex' | '*ast.InSuper' | '*ast.Function' | '*ast.Apply'
 
+
+function stripUtf8(input) {
+    var output = "";
+    for (var i = 0; i < input.length; i++) {
+        if (input.charCodeAt(i) <= 127) {
+            output += input.charAt(i);
+        }
+    }
+    return output;
+}
+
 export default class JsonnetVM {
     private vm: any;
     // I could not find a way to create the error instance using Gopherjs API so we create a dummy error
     private dummyError: any;
+    private astCache = new LruCache<AST>()
 
     constructor() {
         this.vm = jsonnetPackage.MakeVM()
     }
 
     get lazyDummyError() {
-        if(this.dummyError == null) {
+        if (this.dummyError == null) {
             this.dummyError = jsonnetPackage.SnippetToAST("test", "1")[1];
         }
         return this.dummyError
     }
 
-    parse(path: string, files: FileMap): AST {
-        let content = files.get(path);
-        let ast = jsonnetPackage.SnippetToAST(path, content)
+    parse(path: string, rawContent: string): AST {
+        let ast;
+        if (this.astCache.get(rawContent) != null) {
+            ast = this.astCache.get(rawContent);
+        } else {
+            ast = jsonnetPackage.SnippetToAST(path, stripUtf8(rawContent))
+            this.astCache.put(rawContent, ast)
+        }
         let errorType = ast[1].constructor.string
         if (errorType != null) {
             if (errorType == 'errors.staticError') {
@@ -58,35 +72,61 @@ export default class JsonnetVM {
         return ast[0]
     }
 
-    private getDirectoryFromPath(path : string) : string {
-        return path.substring(0, path.lastIndexOf("/")+1)
+    private getDirectoryFromPath(path: string): string {
+        return path.substring(0, path.lastIndexOf("/") + 1)
     }
 
-    compile(path: string, files: FileMap, extCodes: Map<string, string>, ast: AST) {
+    compile(path: string, files: FileMap, extCodes: Map<string, string>, tlaVars: Map<string, string>, libraries: Array<Library>, ast: AST): string {
         Object.keys(extCodes).forEach(key => {
-            this.vm.ExtCode(key, extCodes[key])
+            this.vm.ExtCode(key, JSON.stringify(stripUtf8(extCodes[key])))
         })
+
+        const importerCache = {}
 
         this.vm.Importer({
             Import: (importedFrom, importedPath) => {
-                let target = this.getDirectoryFromPath(normalize(importedFrom)) + normalize(importedPath);
-                let content = files.get(target);
-                if(content != null) {
-                    return [jsonnetPackage.MakeContents(content), importedPath, this.lazyDummyError]
+                let target;
+                if (importedPath.startsWith('/')) {
+                    target = normalize(importedPath)
                 } else {
-                    return [jsonnetPackage.MakeContents(""), importedPath, errors.New(`Error compiled file ${importedFrom}: Imported path ${target} not found`)]
+                    target = normalize(this.getDirectoryFromPath(importedFrom) + '/' + importedPath);
+                }
+
+                target = target.replace(/^\/+|\/+$/g, '')
+
+                let content = files.get(target);
+                if (content == null) {
+                    content = libraries.filter(library => library.name === importedPath).map(library => library.content)[0]
+                }
+
+                if (content != null) {
+                    if (importerCache[target] == null) {
+                        importerCache[target] = [jsonnetPackage.MakeContents(content), importedPath, this.lazyDummyError]
+                    }
+
+                    return importerCache[target]
+                } else {
+
+                    return [jsonnetPackage.MakeContents(""), importedPath, errors.New(`Error compiling file ${importedFrom}: Imported path ${target} not found`)]
                 }
             }
         })
 
-        let result = this.vm.Evaluate(ast);
+        let result
+        try {
+            result = this.vm.Evaluate(ast);
+        } catch (e) {
+            console.error(e)
+            throw new JsonnetError("An unknown error occurred while compiling Jsonnet", null)
+        }
+
         if (result[0] === '') {
             let errorType = result[1].constructor.string;
             if (errorType === '*errors.errorString') {
                 throw new JsonnetError(result[1].s, null)
             }
 
-            if(errorType === 'jsonnet.RuntimeError') {
+            if (errorType === 'jsonnet.RuntimeError') {
                 const stacktrace = result[1].$val.StackTrace
                 const loc = stacktrace != null ? stacktrace.$array[stacktrace.$array.length - 1].Loc : null
                 throw new JsonnetError(result[1].$val.Msg, loc)
@@ -123,6 +163,9 @@ export default class JsonnetVM {
     }
 
     findNodeFromJsonPath = function (rootNode: AST, path: Array<string | number>, currentIndex: number = 0): AST | null {
+        if (path.length == currentIndex) {
+            return rootNode
+        }
         let nodeType = this.getTypeOfAst(rootNode);
         let currentPath = path[currentIndex];
 
@@ -133,7 +176,6 @@ export default class JsonnetVM {
 
             // @ts-ignore
             let $array = rootNode.Elements.$array;
-            debugger
         }
 
         if (nodeType != '*ast.DesugaredObject') {
@@ -149,9 +191,49 @@ export default class JsonnetVM {
         return rootNode
     }
 
-    getLocationOfNode(ast : AST) : jsonService.Range {
+    createRangeFromLocation(locRange: Loc): jsonService.Range {
+        // @ts-ignore
+        return jsonService.Range.create(Math.max(locRange.Begin.Line - 1, 0), Math.max(locRange.Begin.Column - 1, 0), Math.max(locRange.End.Line - 1, 0), Math.max(locRange.End.Column, 0));
+    }
+
+    getLocationOfNode(ast: AST): jsonService.Range {
         // @ts-ignore
         let locRange = ast.NodeBase.LocRange;
-        return jsonService.Range.create(locRange.Begin.Line - 1, locRange.Begin.Column - 1, locRange.End.Line - 1, locRange.End.Column);
+        return this.createRangeFromLocation(locRange)
     }
+
+}
+
+export const extensions = ['.jsonnet', '.libsonnet']
+
+class LruCache<T> {
+
+    private values: Map<string, T> = new Map<string, T>();
+    private maxEntries: number = 100;
+
+    public get(key: string): T {
+        const hasKey = this.values.has(key);
+        let entry: T;
+        if (hasKey) {
+            // peek the entry, re-insert for LRU strategy
+            entry = this.values.get(key);
+            this.values.delete(key);
+            this.values.set(key, entry);
+        }
+
+        return entry;
+    }
+
+    public put(key: string, value: T) {
+
+        if (this.values.size >= this.maxEntries) {
+            // least-recently used cache eviction strategy
+            const keyToDelete = this.values.keys().next().value;
+
+            this.values.delete(keyToDelete);
+        }
+
+        this.values.set(key, value);
+    }
+
 }

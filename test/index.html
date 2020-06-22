@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<meta http-equiv="X-UA-Compatible" content="IE=edge" />
-	<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
-	<link rel="stylesheet" data-name="vs/editor/editor.main" href="../node_modules/monaco-editor-core/dev/vs/editor/editor.main.css">
-	<script src="../node_modules/vscode-languageserver-types/lib/umd/main.d.ts"></script>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+    <link rel="stylesheet" data-name="vs/editor/editor.main"
+          href="../node_modules/monaco-editor-core/dev/vs/editor/editor.main.css">
+    <script src="../node_modules/vscode-languageserver-types/lib/umd/main.d.ts"></script>
 </head>
 <body>
 
@@ -12,70 +13,199 @@
 <div id="container" style="width:800px;height:600px;border:1px solid grey"></div>
 
 <script>
-	// Loading basic-languages to get the json language definition
-	var paths = {
-		// 'vs/basic-languages': '../node_modules/monaco-languages/release/dev',
-		'vs/language/jsonnet': '../out/amd',
-		'gopher-jsonnet': '../node_modules/gopher-jsonnet/index',
-		'jsonc-parser': '../node_modules/jsonc-parser/lib/umd/main',
-		'vscode-json-languageservice': '../node_modules/vscode-json-languageservice/lib/umd/jsonLanguageService',
-		'vscode-languageserver-types': '../node_modules/vscode-languageserver-types/lib/umd/main',
-		'vscode-languageserver-textdocument': '../node_modules/vscode-languageserver-textdocument/lib/umd/main',
-		'jsonLanguageTypes': '../node_modules/vscode-json-languageservice/lib/umd/jsonLanguageTypes',
-		'vscode-nls': '../out/amd/fillers/vscode-nls',
-		'vscode-uri': '../node_modules/vscode-uri/lib/umd/index',
-		'services': '../node_modules/vscode-json-languageservice/lib/umd/services',
-		'parser': '../node_modules/vscode-json-languageservice/lib/umd/parser',
-		'utils': '../node_modules/vscode-json-languageservice/lib/umd/utils',
-		'impl': '../node_modules/jsonc-parser/lib/umd/impl',
-		'vs/base/worker': '../node_modules/monaco-editor-core/dev/vs/base/worker',
-	};
-	if (document.location.protocol === 'http:') {
-		// Add support for running local http server
-		let testIndex = document.location.pathname.indexOf('/test/');
-		if (testIndex !== -1) {
-			let prefix = document.location.pathname.substr(0, testIndex);
-			paths['vs/language/jsonnet'] = prefix + '/out/amd';
-		}
-	}
-	var require = {
-		paths: paths
-	};
+  // Loading basic-languages to get the json language definition
+  var paths = {
+    // 'vs/basic-languages': '../node_modules/monaco-languages/release/dev',
+    'vs/language/jsonnet': '../out/amd',
+    'gopher-jsonnet': '../node_modules/gopher-jsonnet/umd/index',
+    'jsonc-parser': '../node_modules/jsonc-parser/lib/umd/main',
+    'vscode-json-languageservice': '../node_modules/vscode-json-languageservice/lib/umd/jsonLanguageService',
+    'vscode-languageserver-types': '../node_modules/vscode-languageserver-types/lib/umd/main',
+    'vscode-languageserver-textdocument': '../node_modules/vscode-languageserver-textdocument/lib/umd/main',
+    'jsonLanguageTypes': '../node_modules/vscode-json-languageservice/lib/umd/jsonLanguageTypes',
+    'vscode-nls': '../out/amd/fillers/vscode-nls',
+    'vscode-uri': '../node_modules/vscode-uri/lib/umd/index',
+    'services': '../node_modules/vscode-json-languageservice/lib/umd/services',
+    'parser': '../node_modules/vscode-json-languageservice/lib/umd/parser',
+    'utils': '../node_modules/vscode-json-languageservice/lib/umd/utils',
+    'impl': '../node_modules/jsonc-parser/lib/umd/impl',
+    'vs/base/worker': '../node_modules/monaco-editor-core/dev/vs/base/worker',
+  }
+  if (document.location.protocol === 'http:') {
+    // Add support for running local http server
+    let testIndex = document.location.pathname.indexOf('/test/')
+    if (testIndex !== -1) {
+      let prefix = document.location.pathname.substr(0, testIndex)
+      paths['vs/language/jsonnet'] = prefix + '/out/amd'
+    }
+  }
+  var require = {
+    paths: paths
+  }
 </script>
 <script src="../node_modules/monaco-editor-core/dev/vs/loader.js"></script>
 <script src="../node_modules/monaco-editor-core/dev/vs/editor/editor.main.nls.js"></script>
 <script src="../node_modules/monaco-editor-core/dev/vs/editor/editor.main.js"></script>
 
 <script>
-	require([
-		// 'vs/basic-languages/monaco.contribution',
-		'vs/language/jsonnet/monaco.contribution'
-	], function() {
-		monaco.languages.jsonnet.jsonnetDefaults.setDiagnosticsOptions({
-			validate: true,
-			enableSchemaRequest: true,
-			schemas: [{
-				uri: "http://myserver/foo-schema.json",
-				fileMatch: ["*.model.jsonnet"],
-				schema: {
-					$ref: "http://127.0.0.1:8000/test/model.schema.json"
-				}
-			}]
-		});
+  require([
+      // 'vs/basic-languages/monaco.contribution',
+      'vs/language/jsonnet/monaco.contribution'
+    ], function () {
+      const files = {
+        "README.md": "",
+        "_config.jsonnet": "{test: 1}",
+        // "account_usage.dashboard.jsonnet": "{\n  name: 'Snowflake Account Usage',\n  filterSchema: [\n    {\n      name: 'Date',\n      type: 'mappingDimension',\n      value: {\n        name: 'eventTimestamp',\n      },\n      defaultValue: 'P1W',\n      isRequired: true,\n    },\n  ],\n  reports: [\n    {\n      name: 'Snowflake Snowpipe Daily Cost',\n      ttl: 'PT24H',\n      x: 3,\n      y: 1,\n      h: 2,\n      w: 3,\n      component: 'r-segmentation-chart',\n      type: 1,\n      reportOptions: {\n        modelName: 'snowflake_pipe_usage',\n        dimensions: [\n          {\n            name: 'start_time',\n            modelName: 'snowflake_pipe_usage',\n            relationName: null,\n            postOperation: {\n              type: 'timestamp',\n              value: 'day',\n            },\n          },\n        ],\n        measures: [\n          {\n            name: 'total_credits_used_usd',\n            modelName: 'snowflake_pipe_usage',\n            relationName: null,\n          },\n        ],\n        reportOptions: {\n          chartOptions: {\n            type: 'area',\n            showLabels: true,\n            showLegend: true,\n            interactive: true,\n            columnOptions: [],\n          },\n          tableOptions: {\n            columnOptions: [],\n          },\n          columnOptions: null,\n        },\n\n        limit: 1000,\n        filters: [],\n        orders: null,\n      },\n    },\n    {\n      name: 'Snowflake Pipe Daily Usage',\n      ttl: 'PT24H',\n      x: 0,\n      y: 3,\n      h: 2,\n      w: 6,\n      component: 'r-segmentation-table',\n      type: 1,\n      reportOptions: {\n        modelName: 'snowflake_pipe_usage',\n        dimensions: [\n          {\n            name: 'end_time',\n            modelName: 'snowflake_pipe_usage',\n            relationName: null,\n            postOperation: {\n              type: 'timestamp',\n              value: 'day',\n            },\n          },\n        ],\n        measures: [\n          {\n            name: 'total_bytes_inserted',\n            modelName: 'snowflake_pipe_usage',\n            relationName: null,\n          },\n          {\n            name: 'total_files_inserted',\n            modelName: 'snowflake_pipe_usage',\n            relationName: null,\n          },\n          {\n            name: 'total_credits_used_usd',\n            modelName: 'snowflake_pipe_usage',\n            relationName: null,\n          },\n        ],\n        reportOptions: {\n          chartOptions: {\n            type: 'area',\n            showLabels: true,\n            showLegend: true,\n            interactive: true,\n            columnOptions: [],\n          },\n          tableOptions: {\n            columnOptions: [],\n          },\n          columnOptions: null,\n        },\n\n        limit: 1000,\n        filters: [],\n        orders: null,\n      },\n    },\n    {\n      name: 'Snowflake Billable Storage TB',\n      ttl: 'PT24H',\n      x: 4,\n      y: 0,\n      h: 1,\n      w: 2,\n      component: 'r-number',\n      type: 1,\n      reportOptions: {\n        modelName: 'snowflake_storage_metrics',\n        dimensions: [],\n        measures: [\n          {\n            name: 'billable_tb',\n            modelName: 'snowflake_storage_metrics',\n            relationName: null,\n          },\n        ],\n        reportOptions: {\n          chartOptions: {\n            type: null,\n            columnOptions: [],\n          },\n          tableOptions: {\n            columnOptions: [],\n          },\n          columnOptions: null,\n        },\n\n        limit: 1000,\n        filters: [],\n        orders: null,\n      },\n    },\n  ],\n}\n",
+        // "columns.model.jsonnet": "{\n  name: 'snowflake_columns',\n  target: { database: 'SNOWFLAKE', schema: 'ACCOUNT_USAGE', table: 'COLUMNS' },\n  category: 'Snowflake Data-warehouse',\n  measures: {\n    count: {\n      aggregation: 'count',\n    },\n  },\n  dimensions: {\n    character_maximum_length: {\n      column: 'CHARACTER_MAXIMUM_LENGTH',\n      type: 'integer',\n      description: 'Maximum length in characters of string columns',\n    },\n    character_octet_length: {\n      column: 'CHARACTER_OCTET_LENGTH',\n      type: 'integer',\n      description: 'Maximum length in bytes of string columns',\n    },\n    column_default: {\n      column: 'COLUMN_DEFAULT',\n      type: 'string',\n      description: 'Default value of the column',\n    },\n    column_name: {\n      column: 'COLUMN_NAME',\n      type: 'string',\n      description: 'Name of the column',\n    },\n    comment: {\n      column: 'COMMENT',\n      type: 'string',\n      description: 'Comment for this column',\n    },\n    data_type: {\n      type: 'string',\n      column: 'DATA_TYPE',\n    },\n    is_identity: {\n      type: 'boolean',\n      sql: \"CASE WHEN {{TABLE}}.IS_IDENTITY = 'YES' THEN TRUE ELSE FALSE END\",\n    },\n    is_nullable: {\n      type: 'boolean',\n      sql: \"CASE WHEN {{TABLE}}.IS_NULLABLE = 'YES' THEN TRUE ELSE FALSE END\",\n    },\n    numeric_precision: {\n      column: 'NUMERIC_PRECISION',\n      type: 'integer',\n      description: 'Numeric precision of numeric columns',\n    },\n    numeric_precision_radix: {\n      column: 'NUMERIC_PRECISION_RADIX',\n      type: 'integer',\n      description: 'Radix of precision of numeric columns',\n    },\n    numeric_scale: {\n      column: 'NUMERIC_SCALE',\n      type: 'string',\n      description: 'Scale of numeric columns',\n    },\n    ordinal_position: {\n      column: 'ORDINAL_POSITION',\n      type: 'integer',\n      description: 'Ordinal position of the column in the table',\n    },\n    table_schema: {\n      column: 'TABLE_SCHEMA',\n      type: 'string',\n    },\n    table_catalog: {\n      column: 'TABLE_CATALOG',\n      type: 'string',\n    },\n  },\n}\n",
+        // "copy_history.model.jsonnet": "{\n  name: 'snowflake_copy_history',\n  category: 'Snowflake Data-warehouse',\n  target: {\n    database: 'SNOWFLAKE',\n    schema: 'ACCOUNT_USAGE',\n    table: 'COPY_HISTORY',\n  },\n  mappings: {\n    eventTimestamp: 'last_load_time',\n  },\n  dimensions: {\n    file_name: {\n      label: 'FILE_NAME',\n      type: 'string',\n      column: 'FILE_NAME',\n    },\n    stage_location: {\n      label: 'STAGE_LOCATION',\n      type: 'string',\n      column: 'STAGE_LOCATION',\n    },\n    last_load_time: {\n      label: 'LAST_LOAD_TIME',\n      type: 'timestamp',\n      column: 'LAST_LOAD_TIME',\n    },\n    row_count: {\n      label: 'ROW_COUNT',\n      type: 'decimal',\n      column: 'ROW_COUNT',\n    },\n    row_parsed: {\n      label: 'ROW_PARSED',\n      type: 'decimal',\n      column: 'ROW_PARSED',\n    },\n    file_size: {\n      label: 'FILE_SIZE',\n      type: 'decimal',\n      column: 'FILE_SIZE',\n    },\n    first_error_message: {\n      label: 'FIRST_ERROR_MESSAGE',\n      type: 'string',\n      column: 'FIRST_ERROR_MESSAGE',\n    },\n    first_error_line_number: {\n      label: 'FIRST_ERROR_LINE_NUMBER',\n      type: 'decimal',\n      column: 'FIRST_ERROR_LINE_NUMBER',\n    },\n    first_error_character_pos: {\n      label: 'FIRST_ERROR_CHARACTER_POS',\n      type: 'decimal',\n      column: 'FIRST_ERROR_CHARACTER_POS',\n    },\n    first_error_column_name: {\n      label: 'FIRST_ERROR_COLUMN_NAME',\n      type: 'string',\n      column: 'FIRST_ERROR_COLUMN_NAME',\n    },\n    error_count: {\n      label: 'ERROR_COUNT',\n      type: 'decimal',\n      column: 'ERROR_COUNT',\n    },\n    error_limit: {\n      label: 'ERROR_LIMIT',\n      type: 'decimal',\n      column: 'ERROR_LIMIT',\n    },\n    status: {\n      label: 'STATUS',\n      type: 'string',\n      column: 'STATUS',\n    },\n    table_id: {\n      label: 'TABLE_ID',\n      type: 'decimal',\n      column: 'TABLE_ID',\n    },\n    table_name: {\n      label: 'TABLE_NAME',\n      type: 'string',\n      column: 'TABLE_NAME',\n    },\n    table_schema_id: {\n      label: 'TABLE_SCHEMA_ID',\n      type: 'decimal',\n      column: 'TABLE_SCHEMA_ID',\n    },\n    table_schema_name: {\n      label: 'TABLE_SCHEMA_NAME',\n      type: 'string',\n      column: 'TABLE_SCHEMA_NAME',\n    },\n    table_catalog_id: {\n      label: 'TABLE_CATALOG_ID',\n      type: 'decimal',\n      column: 'TABLE_CATALOG_ID',\n    },\n    table_catalog_name: {\n      label: 'TABLE_CATALOG_NAME',\n      type: 'string',\n      column: 'TABLE_CATALOG_NAME',\n    },\n    pipe_catalog_name: {\n      label: 'PIPE_CATALOG_NAME',\n      type: 'string',\n      column: 'PIPE_CATALOG_NAME',\n    },\n    pipe_schema_name: {\n      label: 'PIPE_SCHEMA_NAME',\n      type: 'string',\n      column: 'PIPE_SCHEMA_NAME',\n    },\n    pipe_name: {\n      label: 'PIPE_NAME',\n      type: 'string',\n      column: 'PIPE_NAME',\n    },\n    pipe_received_time: {\n      label: 'PIPE_RECEIVED_TIME',\n      type: 'timestamp',\n      column: 'PIPE_RECEIVED_TIME',\n    },\n  },\n  measures: {\n    count_of_rows: {\n      aggregation: 'count',\n      type: 'double',\n    },\n    sum_of_row_count: {\n      column: 'ROW_COUNT',\n      aggregation: 'sum',\n      type: 'double',\n    },\n    sum_of_row_parsed: {\n      column: 'ROW_PARSED',\n      aggregation: 'sum',\n      type: 'double',\n    },\n    sum_of_file_size: {\n      column: 'FILE_SIZE',\n      aggregation: 'sum',\n      type: 'double',\n    },\n    sum_of_error_count: {\n      column: 'ERROR_COUNT',\n      aggregation: 'sum',\n      type: 'double',\n    },\n  },\n}\n",
+        // "databases.model.jsonnet": "{\n  name: 'snowflake_databases',\n  target: { database: 'SNOWFLAKE', schema: 'ACCOUNT_USAGE', table: 'DATABASES' },\n  category: 'Snowflake Data-warehouse',\n  measures: {\n    count: {\n      aggregation: 'count',\n    },\n  },\n  dimensions: {\n    comment: {\n      column: 'COMMENT',\n      description: 'Comment for this database',\n      type: 'string',\n    },\n    created: {\n      column: 'CREATED',\n      type: 'timestamp',\n    },\n    database_name: {\n      column: 'DATABASE_NAME',\n      type: 'string',\n    },\n    database_owner: {\n      column: 'DATABASE_OWNER',\n      type: 'string',\n    },\n    is_transient: {\n      type: 'string',\n      description: 'Whether this is a transient database',\n      column: 'IS_TRANSIENT',\n    },\n    last_altered: {\n      column: 'LAST_ALTERED',\n      type: 'timestamp',\n      description: 'Last altered time of the database',\n    },\n  },\n}\n",
+        // "load_history.model.jsonnet": "{\n  name: 'snowflake_load_history',\n  target: { database: 'SNOWFLAKE', schema: 'ACCOUNT_USAGE', table: 'LOAD_HISTORY' },\n  category: 'Snowflake Data-warehouse',\n  measures: {\n    total_row_count: {\n      aggregation: 'sum',\n      sql: '{{dimension.row_count}}',\n    },\n    total_error_count: {\n      aggregation: 'sum',\n      sql: '{{dimension.error_count}}',\n    },\n    count: {\n      aggregation: 'count',\n    },\n  },\n  dimensions: {\n    table_name: {\n      column: 'TABLE_NAME',\n      type: 'string',\n    },\n    schema_name: {\n      column: 'SCHEMA_NAME',\n      type: 'string',\n    },\n    file_name: {\n      column: 'FILE_NAME',\n      type: 'string',\n    },\n    last_load_time: {\n      column: 'LAST_LOAD_TIME',\n      type: 'timestamp',\n    },\n    status: {\n      column: 'STATUS',\n      type: 'string',\n    },\n    row_count: {\n      column: 'ROW_COUNT',\n      type: 'integer',\n    },\n    row_parsed: {\n      column: 'ROW_PARSED',\n      type: 'integer',\n    },\n    first_error_message: {\n      column: 'FIRST_ERROR_MESSAGE',\n      type: 'string',\n    },\n    first_error_line_number: {\n      column: 'FIRST_ERROR_LINE_NUMBER',\n      type: 'integer',\n    },\n    first_error_character_position: {\n      column: 'FIRST_ERROR_CHARACTER_POSITION',\n      type: 'integer',\n    },\n    first_error_col_name: {\n      column: 'FIRST_ERROR_COL_NAME',\n      type: 'string',\n    },\n    error_count: {\n      column: 'ERROR_COUNT',\n      type: 'integer',\n    },\n    error_limit: {\n      column: 'ERROR_LIMIT',\n      type: 'integer',\n    },\n  },\n}\n",
+        // "login_history.model.jsonnet": "{\n  name: 'snowflake_login_history',\n  target: { database: 'SNOWFLAKE', schema: 'ACCOUNT_USAGE', table: 'LOGIN_HISTORY' },\n  mappings: {\n    eventTimestamp: 'event_timestamp',\n  },\n  category: 'Snowflake Data-warehouse',\n  measures: {\n    logins: {\n      aggregation: 'count',\n    },\n    total_failed_logins: {\n      aggregation: 'count',\n      filters: [{ dimension: 'is_success', operator: 'is', value: false, valueType: 'boolean' }],\n    },\n    login_failure_rate: {\n      sql: '1.0 * ({{measure.total_failed_logins}} / NULLIF({{measure.logins}},0))',\n    },\n  },\n  dimensions: {\n    client_ip: {\n      column: 'CLIENT_IP',\n      description: 'IP address where the request originated from.',\n      type: 'string',\n    },\n    error_code: {\n      column: 'ERROR_CODE',\n      type: 'string',\n      description: 'Error code, if the request was not successful.',\n    },\n    error_message: {\n      column: 'ERROR_MESSAGE',\n      type: 'string',\n      description: 'Error message returned to the user, if the request was not successful.',\n    },\n    event_timestamp: {\n      column: 'EVENT_TIMESTAMP',\n      type: 'timestamp',\n      description: 'Time (in the UTC time zone) of the event occurrence.',\n    },\n    event_type: {\n      column: 'EVENT_TYPE',\n      type: 'timestamp',\n      description: 'Event type, such as LOGIN for authentication events.',\n    },\n    first_authentication_factor: {\n      column: 'FIRST_AUTHENTICATION_FACTOR',\n      type: 'string',\n      description: 'Method used to authenticate the user (the first factor, if using multi factor authentication).',\n    },\n    is_success: {\n      type: 'boolean',\n      sql: \"CASE WHEN {{TABLE}}.IS_SUCCESS = 'YES' THEN TRUE ELSE FALSE END\",\n      description: 'Whether the user’s request was successful or not.',\n    },\n    reported_client_type: {\n      column: 'REPORTED_CLIENT_TYPE',\n      type: 'string',\n      description: 'Reported type of the client software, such as JDBC_DRIVER, ODBC_DRIVER, etc. This information is not authenticated.',\n    },\n    reported_client_version: {\n      column: 'REPORTED_CLIENT_VERSION',\n      type: 'string',\n      description: 'Reported version of the client software. This information is not authenticated.',\n    },\n    second_authentication_factor: {\n      column: 'SECOND_AUTHENTICATION_FACTOR',\n      type: 'string',\n      description: 'The second factor, if using multi factor authentication, or NULL otherwise.',\n    },\n    user_name: {\n      type: 'string',\n      column: 'USER_NAME',\n      description: 'User associated with this event.',\n    },\n    seconds_between_login_attempts: {\n      type: 'integer',\n      sql: 'timediff(seconds, {{TABLE}}.EVENT_TIMESTAMP, lead({{TABLE}}.EVENT_TIMESTAMP) over(partition by {{dimension.user_name}} order by {{TABLE}}.EVENT_TIMESTAMP)) ',\n    },\n  },\n}\n",
+        // "pipe_usage.model.jsonnet": "{\n  name: 'snowflake_pipe_usage',\n  target: { database: 'SNOWFLAKE', schema: 'ACCOUNT_USAGE', table: 'PIPE_USAGE_HISTORY' },\n  mappings: {\n    eventTimestamp: 'start_time',\n  },\n  category: 'Snowflake Data-warehouse',\n  measures: {\n    count: {\n      aggregation: 'count',\n    },\n    total_credits_used: {\n      aggregation: 'sum',\n      column: 'CREDITS_USED',\n    },\n    total_credits_used_usd: {\n      aggregation: 'sum',\n      sql: '{{dimension.credits_used_usd}}',\n      reportOptions: {\n        suffix: '$',\n      },\n    },\n    total_bytes_inserted: {\n      aggregation: 'sum',\n      column: 'BYTES_INSERTED',\n    },\n    total_files_inserted: {\n      aggregation: 'sum',\n      column: 'FILES_INSERTED',\n    },\n  },\n  dimensions: {\n    pipe_name: {\n      column: 'PIPE_NAME',\n      type: 'string',\n      description: 'Name of the pipe used for a data load. Displays NULL if no pipe name is specified in the query. Each row includes the totals for all pipes in use within the time range.',\n    },\n    bytes_inserted: {\n      column: 'BYTES_INSERTED',\n      type: 'integer',\n      description: 'Number of bytes loaded during the START_TIME and END_TIME window.',\n    },\n    files_inserted: {\n      column: 'FILES_INSERTED',\n      description: 'Number of files loaded during the START_TIME and END_TIME window.',\n      type: 'integer',\n    },\n    credits_used: {\n      column: 'CREDITS_USED',\n      type: 'double',\n      description: 'Number of credits billed for Snowpipe data loads during the START_TIME and END_TIME window.',\n    },\n    credits_used_usd: {\n      sql: '{{dimension.credits_used}} * 2.5',\n      type: 'double',\n      reportOptions: {\n        suffix: '$',\n      },\n    },\n    start_time: {\n      column: 'START_TIME',\n      type: 'timestamp',\n    },\n    end_time: {\n      column: 'START_TIME',\n      type: 'timestamp',\n    },\n  },\n}\n",
+        // "query_history.model.jsonnet": "{\n  name: 'snowflake_query_history',\n  target: { database: 'SNOWFLAKE', schema: 'ACCOUNT_USAGE', table: 'QUERY_HISTORY' },\n  category: 'Snowflake Data-warehouse',\n\n  measures: {\n    query_count: {\n      aggregation: 'count',\n    },\n    current_month_query_count: {\n      aggregation: 'count',\n      filters: [{ dimension: 'start_date', operator: 'between', value: 'P1M', valueType: 'timestamp' }],\n    },\n    average_execution_time: {\n      aggregation: 'average',\n      sql: '{{dimension.execution_time}}',\n    },\n    total_execution_time: {\n      aggregation: 'sum',\n      sql: '{{dimension.execution_time}}',\n    },\n    total_queued_overload_time: {\n      aggregation: 'sum',\n      sql: '{{dimension.queued_overload_time}}',\n      filters: [{ dimension: 'has_overload_time', operator: 'is', value: true, valueType: 'boolean' }],\n    },\n    average_queued_overload_time: {\n      aggregation: 'average',\n      sql: '1.0*{{dimension.queued_overload_time}}',\n      filters: [{ dimension: 'has_overload_time', operator: 'is', value: true, valueType: 'boolean' }],\n    },\n    total_elapsed_time: {\n      aggregation: 'sum',\n      sql: '{{dimension.elapsed_time}}',\n    },\n    total_queued_repair_time: {\n      aggregation: 'sum',\n      sql: '{{dimension.queued_repair_time}}',\n    },\n    total_compilation_time: {\n      aggregation: 'sum',\n      sql: '{{dimension.compilation_time}}',\n    },\n    total_queued_provisioning_time: {\n      aggregation: 'sum',\n      sql: '{{dimension.queued_provisioning_time}}',\n    },\n    total_transaction_blocked_time: {\n      aggregation: 'sum',\n      sql: '{{dimension.transaction_blocked_time}}',\n    },\n    current_mtd_avg_exec_time: {\n      aggregation: 'average',\n      sql: '{{dimension.execution_time}}',\n      filters: [{ dimension: 'start_date', operator: 'between', value: 'P1M', valueType: 'timestamp' }],\n    },\n    prior_mtd_avg_exec_time: {\n      aggregation: 'average',\n      sql: '{{dimension.execution_time}}',\n      filters: [{ dimension: 'is_prior_month_mtd', operator: 'is', value: true, valueType: 'boolean' }],\n    },\n  },\n  dimensions: {\n    compilation_time: {\n      type: 'long',\n      description: 'Compilation time (in milliseconds)',\n      column: 'COMPILATION_TIME',\n    },\n    query_context: {\n      hidden: true,\n      type: 'string',\n      sql: \"PARSE_JSON(regexp_substr(regexp_substr({{TABLE}}.query_text, 'Query\\\\sContext\\\\s\\\\'\\\\{.*\\\\}\\\\''),'\\\\{.*}'))\",\n    },\n    database_name: {\n      type: 'string',\n      column: 'DATABASE_NAME',\n    },\n    end: {\n      column: 'END_TIME',\n      type: 'timestamp',\n    },\n    error_code: {\n      column: 'ERROR_CODE',\n      type: 'integer',\n    },\n    error_message: {\n      type: 'string',\n      column: 'ERROR_MESSAGE',\n    },\n    execution_status: {\n      type: 'string',\n      column: 'EXECUTION_STATUS',\n      description: 'Execution status for the query: success, fail, incident.',\n    },\n    execution_time: {\n      column: 'EXECUTION_TIME',\n      type: 'timestamp',\n    },\n    //    dimension: execution_time_tier {\n    //        type: tier\n    //        tiers: [1000,2500,5000,10000,25000,50000,100000]\n    //      }\n    query_id: {\n      column: 'QUERY_ID',\n      type: 'string',\n      description: 'Internal/system-generated identifier for the SQL statement.',\n    },\n    query_tag: {\n      column: 'QUERY_TAG',\n      type: 'string',\n    },\n    query_text: {\n      column: 'QUERY_TEXT',\n      type: 'string',\n    },\n    query_type: {\n      column: 'QUERY_TYPE',\n      type: 'string',\n    },\n    queued_overload_time: {\n      column: 'QUEUED_OVERLOAD_TIME',\n      type: 'timestamp',\n    },\n    has_overload_time: {\n      type: 'boolean',\n      sql: '{{dimension.queued_overload_time}}>0',\n    },\n    queued_provisioning_time: {\n      type: 'timestamp',\n      column: 'QUEUED_PROVISIONING_TIME',\n    },\n    queued_repair_time: {\n      type: 'timestamp',\n      column: 'QUEUED_REPAIR_TIME',\n    },\n    role_name: {\n      type: 'string',\n      column: 'ROLE_NAME',\n    },\n    session_id: {\n      type: 'integer',\n      column: 'SESSION_ID',\n    },\n    start: {\n      column: 'START_TIME',\n      type: 'timestamp',\n    },\n    elapsed_time: {\n      column: 'TOTAL_ELAPSED_TIME',\n      type: 'integer',\n      description: 'Elapsed time (in milliseconds).',\n    },\n    transaction_blocked_time: {\n      column: 'TRANSACTION_BLOCKED_TIME',\n      type: 'integer',\n      description: 'Time (in milliseconds) spent blocked by a concurrent DML.',\n    },\n    user_name: {\n      column: 'USER_NAME',\n      type: 'string',\n    },\n    warehouse_name: {\n      column: 'WAREHOUSE_NAME',\n      type: 'string',\n    },\n    warehouse_size: {\n      column: 'WAREHOUSE_SIZE',\n      type: 'integer',\n    },\n    warehouse_type: {\n      column: 'WAREHOUSE_TYPE',\n      type: 'string',\n    },\n    is_prior_month_mtd: {\n      type: 'boolean',\n      sql: 'EXTRACT(month, {{TABLE}}.START_TIME) = EXTRACT(month, current_timestamp()) - 1\\n                          and {{TABLE}}.START_TIME <= dateadd(month, -1, current_timestamp())',\n    },\n  },\n}\n",
+        // "stages.model.jsonnet": "{\n  name: 'snowflake_stages',\n  target: { database: 'SNOWFLAKE', schema: 'ACCOUNT_USAGE', table: 'STAGES' },\n  category: 'Snowflake Data-warehouse',\n\n  measures: {\n    count: {\n      aggregation: 'count',\n    },\n  },\n  dimensions: {\n    comment: {\n      type: 'string',\n      column: 'COMMENT',\n    },\n    created: {\n      type: 'timestamp',\n      column: 'CREATED',\n    },\n    deleted: {\n      type: 'timestamp',\n      column: 'DELETED',\n    },\n    last_altered: {\n      type: 'timestamp',\n      column: 'LAST_ALTERED',\n      description: 'Date and time when the stage was last altered.',\n    },\n    stage_catalog: {\n      type: 'string',\n      column: 'STAGE_CATALOG',\n    },\n    stage_name: {\n      type: 'string',\n      column: 'STAGE_NAME',\n    },\n    stage_owner: {\n      type: 'string',\n      column: 'STAGE_OWNER',\n    },\n    stage_region: {\n      type: 'string',\n      column: 'STAGE_REGION',\n    },\n    stage_schema: {\n      type: 'string',\n      column: 'STAGE_SCHEMA',\n    },\n    stage_type: {\n      type: 'string',\n      column: 'STAGE_TYPE',\n    },\n    stage_url: {\n      type: 'string',\n      column: 'STAGE_URL',\n    },\n  },\n}\n",
+        // "storage_usage.model.jsonnet": "{\n  name: 'snowflake_storage_usage',\n  target: { database: 'SNOWFLAKE', schema: 'ACCOUNT_USAGE', table: 'DATABASE_STORAGE_USAGE_HISTORY' },\n  category: 'Snowflake Data-warehouse',\n\n  measures: {\n    average_storage_tb: {\n      aggregation: 'average',\n      sql: '{{dimension.storage_tb}}',\n    },\n    count: {\n      aggregation: 'count',\n    },\n    billable_tb: {\n      aggregation: 'average',\n      sql: '{{dimension.total_tb}}',\n    },\n    prior_month_billable_tb: {\n      aggregation: 'average',\n      sql: '{{dimension.storage_tb}} + {{dimension.failsafe_tb}}',\n      filters: [{ dimension: 'usage', operator: 'lessThan', value: 'P1M', valueType: 'timestamp' }],\n    },\n  },\n  dimensions: {\n    deleted: {\n      column: 'DELETED',\n      type: 'timestamp',\n    },\n    database_name: {\n      column: 'DATABASE_NAME',\n      type: 'string',\n    },\n    usage_date: {\n      column: 'USAGE_DATE',\n      type: 'timestamp',\n    },\n    storage_bytes: {\n      column: 'AVERAGE_DATABASE_BYTES',\n      type: 'long',\n    },\n    failsafe_bytes: {\n      column: 'AVERAGE_FAILSAFE_BYTES',\n      type: 'long',\n    },\n    storage_tb: {\n      sql: '{{dimension.storage_bytes}} / power(1024,4) ',\n      type: 'long',\n    },\n    failsafe_tb: {\n      sql: '{{dimension.failsafe_bytes}} / power(1024,4) ',\n      type: 'long',\n    },\n    total_tb: {\n      sql: '{{dimension.storage_tb}} + {{dimension.failsafe_tb}}',\n      type: 'long',\n    },\n  },\n}\n",
+        // "table_constraints.model.jsonnet": "{\n  name: 'snowflake_table_constraints',\n  target: { database: 'SNOWFLAKE', schema: 'ACCOUNT_USAGE', table: 'TABLE_CONSTRAINTS' },\n  category: 'Snowflake Data-warehouse',\n  measures: {\n    count: {\n      aggregation: 'count',\n    },\n  },\n  dimensions: {\n    comment: {\n      column: 'COMMENT',\n      type: 'string',\n    },\n    constraint_catalog: {\n      column: 'CONSTRAINT_CATALOG',\n      type: 'string',\n    },\n    constraint_name: {\n      column: 'CONSTRAINT_NAME',\n      type: 'string',\n    },\n    constraint_schema: {\n      column: 'CONSTRAINT_SCHEMA',\n      type: 'string',\n    },\n    constraint_type: {\n      column: 'CONSTRAINT_TYPE',\n      type: 'string',\n    },\n    created: {\n      column: 'CREATED',\n      type: 'timestamp',\n    },\n    deleted: {\n      column: 'DELETED',\n      type: 'timestamp',\n    },\n    last_altered: {\n      column: 'LAST_ALTERED',\n      type: 'timestamp',\n    },\n    table_catalog: {\n      column: 'TABLE_CATALOG',\n      type: 'string',\n    },\n    table_name: {\n      column: 'TABLE_NAME',\n      type: 'string',\n    },\n    table_schema: {\n      column: 'TABLE_SCHEMA',\n      type: 'string',\n    },\n    enforced: {\n      column: 'ENFORCED',\n      type: 'string',\n    },\n    initially_deferred: {\n      type: 'boolean',\n      sql: \"CASE WHEN {{TABLE}}.INITIALLY_DEFERRED = 'YES' THEN TRUE ELSE FALSE END\",\n    },\n    is_deferrable: {\n      type: 'boolean',\n      sql: \"CASE WHEN {{TABLE}}.IS_DEFERRABLE = 'YES' THEN TRUE ELSE FALSE END\",\n    },\n  },\n}\n",
+        // "table_storage_metrics.model.jsonnet": "{\n  name: 'snowflake_storage_metrics',\n  target: { database: 'SNOWFLAKE', schema: 'ACCOUNT_USAGE', table: 'TABLE_STORAGE_METRICS' },\n  category: 'Snowflake Data-warehouse',\n  measures: {\n    average_storage_tb: {\n      aggregation: 'average',\n      sql: '{{dimension.storage_tb}}',\n    },\n    count: {\n      aggregation: 'count',\n    },\n    billable_tb: {\n      aggregation: 'average',\n      sql: '{{dimension.total_tb}}',\n    },\n    current_month_billable_tb: {\n      aggregation: 'average',\n      sql: '{{dimension.total_tb}}',\n      filters: [],\n    },\n    /*prior_month_billable_in_tb: {\n      aggregation: 'average',\n      sql: '{{dimension.storage_tb}} + {{dimension.failsafe_tb}}',\n      filters: [{ dimension: 'usage', operator: 'lessThan', value: 'P1M', valueType: 'timestamp' }],\n    },*/\n  },\n  dimensions: {\n    deleted: {\n      type: 'timestamp',\n      column: 'DELETED',\n    },\n    table_catalog: {\n      type: 'string',\n      column: 'TABLE_CATALOG',\n    },\n    /*usage: {\n      column: 'USAGE_DATE',\n      timeframes: [],\n    },*/\n    storage_bytes: {\n      type: 'long',\n      column: 'ACTIVE_BYTES',\n    },\n    failsafe_bytes: {\n      type: 'long',\n      column: 'FAILSAFE_BYTES',\n    },\n    storage_tb: {\n      type: 'long',\n      sql: '{{dimension.storage_bytes}} / power(1024,4) ',\n    },\n    failsafe_tb: {\n      type: 'long',\n      sql: '{{dimension.failsafe_bytes}} / power(1024,4) ',\n    },\n    total_tb: {\n      type: 'long',\n      sql: '{{dimension.storage_tb}} + {{dimension.failsafe_tb}}',\n    },\n  },\n}\n",
+        // "tables.model.jsonnet": "{\n  name: 'snowflake_tables',\n  target: { database: 'SNOWFLAKE', schema: 'ACCOUNT_USAGE', table: 'TABLES' },\n  category: 'Snowflake Data-warehouse',\n\n  measures: {\n    count: {\n      aggregation: 'count',\n    },\n  },\n  dimensions: {\n    bytes: {\n      column: 'BYTES',\n      type: 'long',\n    },\n    clustering_key: {\n      type: 'string',\n      column: 'CLUSTERING_KEY',\n    },\n    comment: {\n      type: 'string',\n      column: 'COMMENT',\n    },\n    commit_action: {\n      type: 'string',\n      column: 'COMMIT_ACTION',\n    },\n    created: {\n      column: 'CREATED',\n      type: 'timestamp',\n    },\n    deleted: {\n      column: 'DELETED',\n      type: 'timestamp',\n    },\n    last_altered: {\n      column: 'LAST_ALTERED',\n      type: 'timestamp',\n    },\n    is_insertable_into: {\n      sql: \"CASE WHEN {{TABLE}}.IS_INSERTABLE_INTO = 'YES' THEN TRUE ELSE FALSE END\",\n      type: 'boolean',\n    },\n    is_transient: {\n      sql: \"CASE WHEN {{TABLE}}.IS_TRANSIENT = 'YES' THEN TRUE ELSE FALSE END\",\n      type: 'boolean',\n    },\n    is_typed: {\n      sql: \"CASE WHEN {{TABLE}}.IS_TYPED = 'YES' THEN TRUE ELSE FALSE END\",\n      type: 'boolean',\n    },\n    reference_generation: {\n      column: 'REFERENCE_GENERATION',\n      type: 'string',\n    },\n    row_count: {\n      column: 'ROW_COUNT',\n      type: 'integer',\n    },\n    self_referencing_column_name: {\n      column: 'SELF_REFERENCING_COLUMN_NAME',\n      type: 'string',\n    },\n    table_catalog: {\n      column: 'TABLE_CATALOG',\n      type: 'string',\n    },\n    table_name: {\n      column: 'TABLE_NAME',\n      type: 'string',\n    },\n    table_owner: {\n      column: 'TABLE_OWNER',\n      type: 'string',\n    },\n    table_schema: {\n      column: 'TABLE_SCHEMA',\n      type: 'string',\n    },\n    table_type: {\n      column: 'TABLE_TYPE',\n      type: 'string',\n    },\n    user_defined_type_name: {\n      column: 'USER_DEFINED_TYPE_NAME',\n      type: 'string',\n    },\n    user_defined_catalog_type: {\n      column: 'USER_DEFINED_TYPE_CATALOG',\n      type: 'string',\n    },\n    user_defined_schema_type: {\n      column: 'USER_DEFINED_TYPE_SCHEMA',\n      type: 'string',\n    },\n  },\n}\n",
+        // "views.model.jsonnet": "{\n  name: 'snowflake_views',\n  target: { database: 'SNOWFLAKE', schema: 'ACCOUNT_USAGE', table: 'VIEWS' },\n  category: 'Snowflake Data-warehouse',\n\n  measures: {\n    count: {\n      aggregation: 'count',\n    },\n  },\n  dimensions: {\n    check_option: {\n      column: 'CHECK_OPTION',\n      type: 'string',\n    },\n    comment: {\n      column: 'COMMENT',\n      type: 'string',\n    },\n    created: {\n      column: 'CREATED',\n      type: 'timestamp',\n    },\n    deleted: {\n      column: 'DELETED',\n      type: 'timestamp',\n      timeframes: [],\n    },\n    last_altered: {\n      column: 'LAST_ALTERED',\n      type: 'timestamp',\n    },\n    table_catalog: {\n      column: 'TABLE_CATALOG',\n      type: 'string',\n\n    },\n    insertable_into: {\n      sql: \"CASE WHEN {{TABLE}}.INSERTABLE_INTO = 'YES' THEN TRUE ELSE FALSE END\",\n      type: 'boolean',\n\n    },\n    is_secure: {\n      sql: \"CASE WHEN {{TABLE}}.IS_SECURE = 'YES' THEN TRUE ELSE FALSE END\",\n      type: 'boolean',\n\n    },\n    is_updatable: {\n      type: 'boolean',\n      sql: \"CASE WHEN {{TABLE}}.IS_UPDATABLE = 'YES' THEN TRUE ELSE FALSE END\",\n    },\n    table_name: {\n      column: 'TABLE_NAME',\n      type: 'string',\n    },\n    table_owner: {\n      column: 'TABLE_OWNER',\n      type: 'string',\n    },\n    table_schema: {\n      column: 'TABLE_SCHEMA',\n      type: 'string',\n    },\n    view_definition: {\n      column: 'VIEW_DEFINITION',\n      type: 'string',\n    },\n  },\n}\n",
+        // "warehouse_metering_history.model.jsonnet": "{\n  name: 'snowflake_warehouse_metering_history',\n  target: { database: 'SNOWFLAKE', schema: 'ACCOUNT_USAGE', table: 'WAREHOUSE_METERING_HISTORY' },\n  category: 'Snowflake Data-warehouse',\n  relations: {\n    pipe_usage: {\n      relationType: 'oneToOne',\n      joinType: 'leftJoin',\n      modelName: 'snowflake_pipe_usage',\n      sourceColumn: 'start_time',\n      targetColumn: 'start_time',\n    },\n  },\n  mappings: {\n    eventTimestamp: 'start_time',\n  },\n  measures: {\n    count: {\n      aggregation: 'count',\n    },\n    average_credits_used: {\n      aggregation: 'average',\n      column: 'CREDITS_USED',\n    },\n    total_credits_used: {\n      aggregation: 'sum',\n      column: 'CREDITS_USED',\n    },\n    total_credits_used_usd: {\n      aggregation: 'sum',\n      sql: '{{dimension.credits_used_usd}}',\n      reportOptions: {\n        suffix: '$',\n      },\n    },\n  },\n  dimensions: {\n    credits_used: {\n      column: 'CREDITS_USED',\n      type: 'double',\n    },\n    credits_used_usd: {\n      type: 'double',\n      sql: '{{dimension.credits_used}} * 2.5',\n      reportOptions: {\n        suffix: '$',\n      },\n    },\n    start_time: {\n      column: 'START_TIME',\n      type: 'timestamp',\n    },\n    end_time: {\n      column: 'END_TIME',\n      type: 'timestamp',\n    },\n    warehouse_name: {\n      column: 'WAREHOUSE_NAME',\n      type: 'string',\n    },\n    is_prior_month_mtd: {\n      type: 'boolean',\n      sql: 'EXTRACT(month, {{dimension.start_time}}) = EXTRACT(month, current_timestamp()) - 1 and {{dimension.start_time}} <= dateadd(month, -1, current_timestamp())',\n    },\n  },\n}\n"
+      }
 
-		const test = monaco.editor.createModel('' +
-				'local a = import "./test1.model.jsonnet";\n{\n"test": a\n' +
-				'}', 'jsonnet', monaco.Uri.parse(`git://test.model.jsonnet`));
+      let extVars = {_aq: '"', _db: "snowflake"}
 
-		const test1 = monaco.editor.createModel('{\n' +
-				'\t"test": 1\n' +
-				'}', 'jsonnet', monaco.Uri.parse(`git://test1.model.jsonnet`));
+    const host = 'https://app.rakam.io'
+    const schema = [
+      {
+        uri: 'model.schema',
+        fileMatch: ['*.model.json'],
+        schema: {'$ref': host + '/schema/model.schema.json'}
+      },
+      {
+        uri: 'http://docs.rakam.io/schema/models',
+        fileMatch: ['*.models.json'],
+        schema: {
+          'type': 'array',
+          'items': {'$ref': host + '/schema/model.schema.json'}
+        }
+      },
+      {
+        uri: 'config.schema',
+        fileMatch: ['_config.json'],
+        schema: {'$ref': host + '/schema/config.schema.json'}
+      }
+      // {
+      //   uri: 'https://docs.rakam.io/docs/compose/schema/dashboards.json',
+      //   fileMatch: ['dashboard.json'],
+      //   schema: dashboardSchema
+      // },
+      // {
+      //   uri: 'https://docs.rakam.io/docs/compose/schema/dashboard.json',
+      //   fileMatch: ['*.dashboards.json'],
+      //   schema: {
+      //     'type': 'array',
+      //     'items': dashboardSchema
+      //   }
+      // }
+    ]
 
-		const editor = monaco.editor.create(document.getElementById('container'), {
-			model: test,
-			theme: "vs-dark",
-		});
-	});
+    const libraries = [
+      {
+        name: 'util.libsonnet', content: `{
+  generate_jinja_header(obj)::
+    std.join('', ['{%% set %s = %s %%} ' % [f, std.manifestPython(obj[f])] for f in std.objectFields(obj)]),
+  generate_model_name_from_file(name)::
+    local parts = std.split(name, '/');
+    std.strReplace(parts[std.length(parts) - 1], '.model.jsonnet', ''),
+  generate_target_reference(target)::
+    local alias_quote = std.extVar('_aq');
+    std.join('.', std.map(function(x) alias_quote + x + alias_quote, std.filter(function(x) x != null, [
+      if std.objectHas(target, 'database') then target.database else null,
+      if std.objectHas(target, 'schema') then target.schema else null,
+      target.table,
+    ]))),
+}`
+      }
+    ]
+      monaco.languages.jsonnet.jsonnetDefaults.setDiagnosticsOptions({
+        validate: true,
+        allowComments: true,
+        enableSchemaRequest: true,
+        libraries: libraries,
+        extVars: extVars,
+        schemas: schema.map(item => {
+          return {
+            fileMatch: item.fileMatch.map(v => `${v}net`),
+            schema: item.schema,
+            uri: item.uri
+          }
+        })
+      })
+
+      const models = {}
+      Object
+        .keys(files).forEach(file => {
+        const uri = monaco.Uri.from({path: file, scheme: 'git'})
+        models[file] = monaco.editor.createModel(files[file], null, uri)
+      })
+
+      const editor = monaco.editor.create(document.getElementById('container'), {
+        model: models['_config.jsonnet'],
+        theme: 'vs-dark',
+      })
+
+        monaco.languages.jsonnet.getWorker().then(workerXhr => {
+          return workerXhr().then(worker => {
+            worker.compile(new monaco.Uri('git', null, '_config.jsonnet')).then(data => {
+              debugger
+            })
+          })
+        })
+
+      var commandId = editor.addCommand(0, function () {
+        // services available in `ctx`
+        alert('my command is executing!')
+
+      }, '')
+
+      monaco.languages.registerCodeLensProvider('jsonnet', {
+        provideCodeLenses: function (model, token) {
+          if (model.uri.path === '_config.jsonnet') {
+            const a = monaco.languages.jsonnet.getWorker().then(workerXhr => {
+              return workerXhr().then(worker => {
+                const ourPaths = [['version'], ['path']]
+                return worker.getJsonPaths(new monaco.Uri('git', null, '_config.jsonnet'), ...ourPaths).then(jsonnetPaths => {
+                  const codeLenses = []
+                  jsonnetPaths.forEach((range, idx) => {
+                    if(range == null) return
+                    let id = ourPaths[idx].join('.')
+                    codeLenses.push({
+                      range: range,
+                      id: id,
+                      command: {
+                        id: commandId,
+                        title: id
+                      }
+                    })
+                  })
+
+                  return {lenses: codeLenses}
+                })
+              })
+            })
+
+            console.log(a)
+            a.then(c => console.log(c))
+
+            return a
+          }
+        },
+        resolveCodeLens: function (model, codeLens, token) {
+          return codeLens
+        }
+      })
+    }
+  )
 </script>
 
 </body>

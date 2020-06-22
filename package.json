@@ -1,6 +1,6 @@
 {
   "name": "monaco-jsonnet",
-  "version": "2.9.0",
+  "version": "2.9.9-beta",
   "description": "Jsonnet plugin for the Monaco Editor",
   "scripts": {
     "compile": "mrmdir ./out && tsc -p ./src/tsconfig.json && tsc -p ./src/tsconfig.esm.json",
@@ -19,13 +19,14 @@
     "url": "https://github.com/rakam-io/monaco-jsonnet/issues"
   },
   "devDependencies": {
-    "gopher-jsonnet": "1.0.3",
+    "gopher-jsonnet": "1.0.5",
     "monaco-editor-core": "0.20.0",
     "monaco-languages": "1.10.0",
     "monaco-plugin-helpers": "^1.0.2",
     "requirejs": "^2.3.6",
     "typescript": "3.7.5",
     "terser": "^4.6.3",
-    "vscode-json-languageservice": "3.4.11"
+    "vscode-json-languageservice": "3.4.11",
+    "express": "^4.17.1"
   }
 }

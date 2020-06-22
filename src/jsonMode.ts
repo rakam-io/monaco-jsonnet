@@ -5,11 +5,15 @@
 'use strict';
 
 import {WorkerManager} from './workerManager';
-import {JSONWorker} from './jsonWorker';
 import {LanguageServiceDefaultsImpl} from './monaco.contribution';
 import * as languageFeatures from './languageFeatures';
 import Uri = monaco.Uri;
 import IDisposable = monaco.IDisposable;
+import ILanguage = monaco.languages.IMonarchLanguage;
+import JsonnetWorker = monaco.languages.jsonnet.JsonnetWorker;
+import {WorkerAccessor} from "./languageFeatures";
+
+let worker: WorkerAccessor;
 
 export function setupMode(defaults: LanguageServiceDefaultsImpl): IDisposable {
     const disposables: IDisposable[] = [];
@@ -18,7 +22,7 @@ export function setupMode(defaults: LanguageServiceDefaultsImpl): IDisposable {
     const client = new WorkerManager(defaults);
     disposables.push(client);
 
-    const worker: languageFeatures.WorkerAccessor = (...uris: Uri[]): Promise<JSONWorker> => {
+    worker = (...uris: Uri[]) => {
         return client.getLanguageServiceWorker(...uris);
     };
 
@@ -31,9 +35,9 @@ export function setupMode(defaults: LanguageServiceDefaultsImpl): IDisposable {
             providers.push(new languageFeatures.DiagnosticsAdapter(languageId, worker, defaults));
         }
 
-		if (modeConfiguration.documentFormattingEdits) {
-			providers.push(monaco.languages.registerDocumentFormattingEditProvider(languageId, new languageFeatures.DocumentFormattingEditProvider(worker)));
-		}
+        if (modeConfiguration.documentFormattingEdits) {
+            providers.push(monaco.languages.registerDocumentFormattingEditProvider(languageId, new languageFeatures.DocumentFormattingEditProvider(worker)));
+        }
 
         providers.push(monaco.languages.registerHoverProvider(languageId, new languageFeatures.HoverAdapter(worker)));
     }
@@ -67,128 +71,145 @@ function disposeAll(disposables: IDisposable[]) {
 }
 
 const richEditConfiguration: monaco.languages.LanguageConfiguration = {
-	wordPattern: /(-?\d*\.\d\w*)|([^\[\{\]\}\:\"\,\s]+)/g,
+    wordPattern: /(-?\d*\.\d\w*)|([^\[\{\]\}\:\"\,\s]+)/g,
 
-	comments: {
-		lineComment: '//',
-		blockComment: ['/*', '*/']
-	},
+    comments: {
+        lineComment: '//',
+        blockComment: ['/*', '*/']
+    },
 
-	brackets: [
-		['{', '}'],
-		['[', ']']
-	],
+    brackets: [
+        ['{', '}'],
+        ['[', ']']
+    ],
 
-	autoClosingPairs: [
-		{ open: '{', close: '}', notIn: ['string'] },
-		{ open: '[', close: ']', notIn: ['string'] },
-		{ open: '"', close: '"', notIn: ['string'] },
-		{ open: '\'', close: '\'', notIn: ['string'] }
-	]
+    autoClosingPairs: [
+        {open: '{', close: '}', notIn: ['string']},
+        {open: '[', close: ']', notIn: ['string']},
+        {open: '"', close: '"', notIn: ['string']},
+        {open: '\'', close: '\'', notIn: ['string']}
+    ]
 };
 
-import ILanguage = monaco.languages.IMonarchLanguage;
 
 const monarchTokenizer = <ILanguage>{
-	tokenPostfix: '.jsonnet',
-	ignoreCase: false,
-	brackets: [
-		{ open: '[', close: ']', token: 'delimiter.square' },
-		{ open: '{', close: '}', token: 'delimiter.object' }
-	],
+    tokenPostfix: '.jsonnet',
+    ignoreCase: false,
+    brackets: [
+        {open: '[', close: ']', token: 'delimiter.square'},
+        {open: '{', close: '}', token: 'delimiter.object'}
+    ],
 
-	// Set defaultToken to invalid to see what you do not tokenize yet
-	keywords: [
-		'self', 'super', 'import', 'importstr', 'local', 'tailstrict',
-		'if', 'then', 'else', 'for', 'in', 'error', 'assert',
-		'function',
-	],
+    // Set defaultToken to invalid to see what you do not tokenize yet
+    keywords: [
+        'self', 'super', 'import', 'importstr', 'local', 'tailstrict',
+        'if', 'then', 'else', 'for', 'in', 'error', 'assert',
+        'function',
+    ],
 
-	literalKeywords: [
-		'true', 'false', 'null'
-	],
+    literalKeywords: [
+        'true', 'false', 'null'
+    ],
 
-	operators: [
-		'=', '>', '<',  '==', '<=', '>=', '!=',
-		'&&', '||', '+', '-', '*', '/', '&', '|', '^', '%',
-	],
+    operators: [
+        '=', '>', '<', '==', '<=', '>=', '!=',
+        '&&', '||', '+', '-', '*', '/', '&', '|', '^', '%',
+    ],
 
-	symbols:  /[=><!~?:&|+\-*\/\^%]+/,
-	escapes: /\\(?:[abfnrtv\\"']|x[0-9A-Fa-f]{1,4}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8})/,
+    symbols: /[=><!~?:&|+\-*\/\^%]+/,
+    escapes: /\\(?:[abfnrtv\\"']|x[0-9A-Fa-f]{1,4}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8})/,
 
-	tokenizer: {
-		root: [
-			[/[a-zA-Z_][0-9A-Za-z_]*\s*\+?\:(:|::)?/, 'variable.name' ],  // to show props names nicely
+    tokenizer: {
+        root: [
+            [/[a-zA-Z_][0-9A-Za-z_]*\s*\+?\:(:|::)?/, 'variable.name'],  // to show props names nicely
 
-			[/[a-zA-Z_.0-9]+\([^\)]*\)(\.[^\)]*\))?/, 'constant'], // function calls
+            [/[a-zA-Z_.0-9]+\([^\)]*\)(\.[^\)]*\))?/, 'constant'], // function calls
 
-			// identifiers and keywords
-			[/[a-z_$][\w$]*/, { cases: { '@literalKeywords': 'keyword',
-					'@keywords': 'keyword',
-					'@default': 'identifier' } }],
+            // identifiers and keywords
+            [/[a-z_$][\w$]*/, {
+                cases: {
+                    '@literalKeywords': 'keyword',
+                    '@keywords': 'keyword',
+                    '@default': 'identifier'
+                }
+            }],
 
-			// whitespace
-			{ include: '@whitespace' },
+            // whitespace
+            {include: '@whitespace'},
 
-			// delimiters and operators
-			[/[{}()\[\]]/, '@brackets'],
-			[/[<>](?!@symbols)/, '@brackets'],
-			[/@symbols/, { cases: { '@operators': 'operator',
-					'@default'  : '' } } ],
+            // delimiters and operators
+            // [/[{}()\[\]]/, '@brackets'],
+            // [/[<>](?!@symbols)/, '@brackets'],
+            [/@symbols/, {
+                cases: {
+                    '@operators': 'operator',
+                    '@default': ''
+                }
+            }],
 
-			// numbers
-			[/\d*\.\d+([eE][\-+]?\d+)?/, 'number.float'],
-			[/0[xX][0-9a-fA-F]+/, 'number.hex'],
-			[/\d+/, 'number'],
+            // numbers
+            [/\d*\.\d+([eE][\-+]?\d+)?/, 'number.float'],
+            [/0[xX][0-9a-fA-F]+/, 'number.hex'],
+            [/\d+/, 'number'],
 
-			// delimiter: after number because of .\d floats
-			[/[;,.]/, 'delimiter'],
+            // delimiter: after number because of .\d floats
+            [/[;,.]/, 'delimiter'],
 
-			// strings
-			[/"([^"\\]|\\.)*$/, 'string.invalid' ],  // non-teminated string
-			[/"([^'\\]|\\.)*$/, 'string.invalid' ],  // non-teminated string
-			[/"/,  { token: 'string.quote', bracket: '@open', next: '@doubleQuotedString' } ],
-			[/'/,  { token: 'string.quote', bracket: '@open', next: '@singleQuotedString' } ],
-			[/\|\|\|/, '@tripleQuotedString'],
+            // strings
+            [/"([^"\\]|\\.)*$/, 'string.invalid'],  // non-teminated string
+            [/"([^'\\]|\\.)*$/, 'string.invalid'],  // non-teminated string
+            [/"/, {token: 'string.quote', bracket: '@open', next: '@doubleQuotedString'}],
+            [/'/, {token: 'string.quote', bracket: '@open', next: '@singleQuotedString'}],
+            [/\|\|\|/, '@tripleQuotedString'],
 
-			// characters
-			[/'[^\\']'/, 'string'],
-			[/(')(@escapes)(')/, ['string','string.escape','string']],
-			[/'/, 'string.invalid']
-		],
+            // characters
+            [/'[^\\']'/, 'string'],
+            [/(')(@escapes)(')/, ['string', 'string.escape', 'string']],
+            [/'/, 'string.invalid']
+        ],
 
-		comment: [
-			[/[^\/*]+/, 'comment' ],
-			[/\/\*/,    'comment', '@push' ],    // nested comment
-			["\\*/",    'comment', '@pop'  ],
-			[/[\/*]/,   'comment' ]
-		],
+        comment: [
+            [/[^\/*]+/, 'comment'],
+            [/\/\*/, 'comment', '@push'],    // nested comment
+            ["\\*/", 'comment', '@pop'],
+            [/[\/*]/, 'comment']
+        ],
 
-		tripleQuotedString: [
-			[/[^|||]+$/, 'string' ],
-			[/\|\|\|/,    'string', '@pop'  ],
-		],
+        tripleQuotedString: [
+            [/[^|||]+$/, 'string'],
+            [/\|\|\|/, 'string', '@pop'],
+        ],
 
-		doubleQuotedString: [
-			[/[^\\"]+/,  'string'],
-			[/@escapes/, 'string.escape'],
-			[/\\./,      'string.escape.invalid'],
-			[/"/,        { token: 'string.quote', bracket: '@close', next: '@pop' } ]
-		],
+        doubleQuotedString: [
+            [/[^\\"]+/, 'string'],
+            [/@escapes/, 'string.escape'],
+            [/\\./, 'string.escape.invalid'],
+            [/"/, {token: 'string.quote', bracket: '@close', next: '@pop'}]
+        ],
 
-		singleQuotedString: [
-			[/[^\\']+/,  'string'],
-			[/@escapes/, 'string.escape'],
-			[/\\./,      'string.escape.invalid'],
-			[/'/,        { token: 'string.quote', bracket: '@close', next: '@pop' } ]
-		],
+        singleQuotedString: [
+            [/[^\\']+/, 'string'],
+            [/@escapes/, 'string.escape'],
+            [/\\./, 'string.escape.invalid'],
+            [/'/, {token: 'string.quote', bracket: '@close', next: '@pop'}]
+        ],
 
-		whitespace: [
-			[/[ \t\r\n]+/, 'white'],
-			[/\/\*/,       'comment', '@comment' ],
-			[/\/\/.*$/,    'comment'],
-			[/\|\|\|$/,   'string', '@tripleQuotedString' ],
-		],
-	},
+        whitespace: [
+            [/[ \t\r\n]+/, 'white'],
+            [/\/\*/, 'comment', '@comment'],
+            [/\/\/.*$/, 'comment'],
+            [/\|\|\|$/, 'string', '@tripleQuotedString'],
+        ],
+    },
 };
 
+
+export function getWorker(): Promise<(...uris: Uri[]) => Promise<JsonnetWorker>> {
+    return new Promise((resolve, reject) => {
+        if (!worker) {
+            return reject("Jsonnet not registered!");
+        }
+
+        resolve(worker);
+    });
+}

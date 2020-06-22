@@ -22,7 +22,7 @@ const BUNDLED_FILE_HEADER = [
 
 bundleOne('monaco.contribution')
 bundleOne('jsonMode')
-bundleOne('jsonWorker')
+bundleOne('jsonnetWorker')
 
 function bundleOne (moduleId, exclude) {
   requirejs.optimize({
@@ -52,7 +52,7 @@ function bundleOne (moduleId, exclude) {
       main: 'main'
     }, {
       name: 'gopher-jsonnet',
-      location: path.join(REPO_ROOT, './node_modules/gopher-jsonnet'),
+      location: path.join(REPO_ROOT, './node_modules/gopher-jsonnet/umd'),
       main: 'index'
     }, {
       name: 'vscode-uri',

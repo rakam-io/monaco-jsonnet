@@ -4,15 +4,12 @@
  *--------------------------------------------------------------------------------------------*/
 
 declare module monaco.languages.jsonnet {
+
 	export interface DiagnosticsOptions {
 		/**
 		 * If set, the validator will be enabled and perform syntax validation as well as schema based validation.
 		 */
 		readonly validate?: boolean;
-		/**
-		 * If set, comments are tolerated. If set to false, syntax errors will be emitted for comments.
-		 */
-		readonly allowComments?: boolean;
 		/**
 		 * A list of known schemas and/or associations of schemas to file names.
 		 */
@@ -34,6 +31,9 @@ declare module monaco.languages.jsonnet {
 		 *  If set, the schema service would load schema content on-demand with 'fetch' if available
 		 */
 		readonly enableSchemaRequest?: boolean;
+		readonly extVars: Map<String, any>;
+		readonly tlaVars: Map<String, any>;
+		readonly libraries: Array<Library>;
 	}
 
 	export interface ModeConfiguration {
@@ -79,6 +79,8 @@ declare module monaco.languages.jsonnet {
 
 	}
 
+	type Library = { name: string, content: string };
+
 	export interface LanguageServiceDefaults {
 		readonly onDidChange: IEvent<LanguageServiceDefaults>;
 		readonly diagnosticsOptions: DiagnosticsOptions;
@@ -88,4 +90,11 @@ declare module monaco.languages.jsonnet {
 	}
 
 	export var jsonnetDefaults: LanguageServiceDefaults;
+
+	export const getWorker: () => Promise<(...uris: Uri[]) => Promise<JsonnetWorker>>;
+
+	export interface JsonnetWorker {
+		getJsonPaths(uri : Uri, ...jsonPath: Array<string | number>[]) : Array<monaco.IRange>;
+		compile(uri : Uri) : string
+	}
 }

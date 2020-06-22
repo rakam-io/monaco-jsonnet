@@ -1,0 +1,149 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "title": "Rakam Recipe Config Schema",
+  "description": "The config schema that defines the recipe information and settings.",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "label"
+  ],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "description": "The version information of the recipe"
+    },
+    "label": {
+      "type": "string",
+      "minLength": 3,
+      "description": "The label of the recipe that will be shown to the user",
+      "examples": [
+        "Firebase Event Analytics"
+      ]
+    },
+    "description": {
+      "type": "string",
+      "description": "The explanation of what this recipe is about",
+      "examples": [
+        "Analytics models for Firebase BigQuery Export."
+      ]
+    },
+    "image": {
+      "type": "string",
+      "title": "The URL of the image that represents the recipe",
+      "examples": [
+        "https://github.com/rakam-io/recipes/raw/master/firebase/logo.png"
+      ]
+    },
+    "tags": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 1,
+      "title": "The recipe category",
+      "additionalItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 3,
+        "examples": [
+          "event-analytics"
+        ]
+      }
+    },
+    "databases": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 1,
+      "title": "The Databases Schema",
+      "description": "An explanation about the purpose of this instance.",
+      "additionalItems": true,
+      "items": {
+        "type": "string",
+        "title": "The Items Schema",
+        "description": "An explanation about the purpose of this instance.",
+        "enum": [
+          "bigQuery",
+          "postgresql",
+          "mysql",
+          "snowflake"
+        ]
+      }
+    },
+    "dependencies": {
+       "type": "object",
+       "properties": {
+           "dbt": {
+                "type": "object",
+                "properties": {
+                    "packages": {
+
+                    },
+                    "dbtProject": {
+                    }
+                }
+           }
+       }
+    },
+    "variables": {
+      "type": "object",
+      "examples": [
+        {
+          "variableName": {
+            "type": "schema"
+          }
+        }
+      ],
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "The label will be shown to the user"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "schema",
+              "target",
+              "choice",
+              "string",
+              "numeric",
+              "boolean",
+              "model-mapping",
+              "dimension",
+              "sql",
+              "model",
+              "measure",
+              "table",
+              "multiple-table",
+              "table-column",
+              "table-multiple-column"
+            ],
+            "description": "The type will be"
+          },
+          "options": {
+            "type": "object",
+            "title": "The options of the variable type",
+            "additionalProperties": true
+          },
+          "required": {
+            "type": "boolean",
+            "default": true
+          },
+          "description": {
+            "type": "string",
+            "description": "The explanation of the variable that will be shown to the user"
+          },
+          "parent": {
+            "type": "string",
+            "title": "The parent variable",
+            "description": "The variable will not be shown to the user if the parent variable is not set."
+          }
+        }
+      }
+    }
+  }
+}
