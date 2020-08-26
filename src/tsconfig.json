@@ -4,6 +4,7 @@
     "moduleResolution": "node",
     "outDir": "../out/amd",
     "target": "es5",
+    "allowJs": true, // for go.js
     "lib": [
       "dom",
       "es5",
@@ -11,5 +12,6 @@
       "es2015.promise",
       "es2015.iterable"
     ]
-  }
+  },
+  "include": ["**/*"]
 }

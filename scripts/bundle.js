@@ -51,10 +51,6 @@ function bundleOne (moduleId, exclude) {
       location: path.join(REPO_ROOT, 'node_modules/jsonc-parser/lib/umd'),
       main: 'main'
     }, {
-      name: 'gopher-jsonnet',
-      location: path.join(REPO_ROOT, './node_modules/gopher-jsonnet/umd'),
-      main: 'index'
-    }, {
       name: 'vscode-uri',
       location: path.join(REPO_ROOT, 'node_modules/vscode-uri/lib/umd'),
       main: 'index'

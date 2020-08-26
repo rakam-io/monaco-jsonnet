@@ -25,7 +25,6 @@ helpers.packageESM({
 	],
 	destinationFolderSimplification: {
 		'node_modules': '_deps',
-		'gopher-jsonnet/esm/index': 'gopher-jsonnet',
 		'vscode-languageserver-types/lib/esm': 'vscode-languageserver-types',
 		'vscode-uri/lib/esm': 'vscode-uri',
 		'vscode-json-languageservice/lib/esm': 'vscode-json-languageservice'

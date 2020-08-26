@@ -33,7 +33,8 @@ declare module monaco.languages.jsonnet {
 		readonly enableSchemaRequest?: boolean;
 		readonly extVars: Map<String, any>;
 		readonly tlaVars: Map<String, any>;
-		readonly libraries: Array<Library>;
+		readonly libraries: Library;
+		readonly compilerUrl: string;
 	}
 
 	export interface ModeConfiguration {
@@ -79,7 +80,17 @@ declare module monaco.languages.jsonnet {
 
 	}
 
-	type Library = { name: string, content: string };
+	interface Library {
+		[path: string]: string
+	}
+
+	export interface ExtCodes {
+		[name: string]: string
+	}
+
+	export interface TlaVars {
+		[name: string]: string
+	}
 
 	export interface LanguageServiceDefaults {
 		readonly onDidChange: IEvent<LanguageServiceDefaults>;
@@ -94,7 +105,7 @@ declare module monaco.languages.jsonnet {
 	export const getWorker: () => Promise<(...uris: Uri[]) => Promise<JsonnetWorker>>;
 
 	export interface JsonnetWorker {
-		getJsonPaths(uri : Uri, ...jsonPath: Array<string | number>[]) : Array<monaco.IRange>;
-		compile(uri : Uri) : string
+		getJsonPaths(uri : Uri, ...jsonPath: Array<string | number>[]) : Promise<Array<monaco.IRange>>;
+		compile(uri : Uri) : Promise<string>
 	}
 }

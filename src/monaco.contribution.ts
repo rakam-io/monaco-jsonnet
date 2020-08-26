@@ -8,7 +8,6 @@ import * as mode from './jsonMode';
 
 import Emitter = monaco.Emitter;
 import IEvent = monaco.IEvent;
-import {extensions} from "./jsonnet";
 import JsonnetWorker = monaco.languages.jsonnet.JsonnetWorker;
 
 export class LanguageServiceDefaultsImpl implements monaco.languages.jsonnet.LanguageServiceDefaults {
@@ -53,11 +52,12 @@ export class LanguageServiceDefaultsImpl implements monaco.languages.jsonnet.Lan
 
 const diagnosticDefault: Required<monaco.languages.jsonnet.DiagnosticsOptions> = {
 	validate: true,
-	libraries: [],
+	libraries: {},
 	schemas: [],
 	enableSchemaRequest: false,
 	extVars: new Map(),
 	tlaVars: new Map(),
+	compilerUrl: null,
 };
 
 const modeConfigurationDefault: Required<monaco.languages.jsonnet.ModeConfiguration> = {
@@ -90,7 +90,7 @@ function getMode(): Promise<typeof mode> {
 
 monaco.languages.register({
 	id: 'jsonnet',
-	extensions: extensions,
+	extensions: ['.jsonnet', '.libsonnet'],
 	mimetypes: ['application/jsonnet'],
 });
 

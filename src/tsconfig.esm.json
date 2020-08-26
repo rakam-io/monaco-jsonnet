@@ -4,6 +4,7 @@
     "moduleResolution": "node",
     "outDir": "../out/esm",
     "target": "es5",
+    "allowJs": true, // for go.js
     "lib": [
       "dom",
       "es5",

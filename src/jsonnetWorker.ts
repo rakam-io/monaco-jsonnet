@@ -9,7 +9,9 @@ import IWorkerContext = monaco.worker.IWorkerContext;
 import IMirrorModel = worker.IMirrorModel;
 import Library = monaco.languages.jsonnet.Library;
 import JsonnetWorker = monaco.languages.jsonnet.JsonnetWorker;
-import JsonnetVM, {AST, extensions, JsonnetError} from './jsonnet';
+import ExtCodes = monaco.languages.jsonnet.ExtCodes;
+import TlaVars = monaco.languages.jsonnet.TlaVars;
+import JsonnetVM, {FileMap, JsonnetError} from './jsonnet';
 import * as Json from 'jsonc-parser';
 
 import * as jsonService from 'vscode-json-languageservice';
@@ -22,6 +24,8 @@ if (typeof fetch !== 'undefined') {
         return fetch(url).then(response => response.text())
     };
 }
+
+const extensions = ['.jsonnet', '.libsonnet']
 
 class PromiseAdapter<T> implements jsonService.Thenable<T> {
     private wrapped: Promise<T>;
@@ -62,7 +66,6 @@ export class JsonnetWorkerImpl implements JsonnetWorker {
     private jsonnet: JsonnetVM;
 
     constructor(ctx: IWorkerContext, createData: ICreateData) {
-        this.jsonnet = new JsonnetVM()
         this._ctx = ctx;
         this._languageSettings = createData.languageSettings;
         this._languageId = createData.languageId;
@@ -72,14 +75,15 @@ export class JsonnetWorkerImpl implements JsonnetWorker {
             promiseConstructor: PromiseAdapter
         });
         this._languageService.configure(this._languageSettings);
+        this.jsonnet = new JsonnetVM(this._languageSettings.compilerUrl)
     }
 
     private getDiagnosticFromJsonnetError(error: JsonnetError) {
         let range;
-        if (error.loc == null) {
+        if (error.location == null) {
             range = jsonService.Range.create(0, 0, 0, 1);
         } else {
-            range = this.jsonnet.createRangeFromLocation(error.loc)
+            range = error.location
         }
 
         return jsonService.Diagnostic.create(range, `${error.message}`, 1);
@@ -96,40 +100,18 @@ export class JsonnetWorkerImpl implements JsonnetWorker {
         const model = models.find(model => this.toPath(model.uri) === path)
 
         let documents = this._getTextDocuments(models);
+        let jsonDocument, textDocument
 
-        let ast: AST;
-        try {
-            ast = this.jsonnet.parse(path, documents.get(path));
-        } catch (e) {
-            if (e instanceof JsonnetError) {
-                let diagnostics = new Array(this.getDiagnosticFromJsonnetError(e));
-                return Promise.resolve(diagnostics)
-            }
+        let compileXhr = this.jsonnet.compile(path, documents,
+            this._languageSettings.extVars || {},
+            this._languageSettings.tlaVars || {},
+            this._languageSettings.libraries).then(result => {
+            textDocument = jsonService.TextDocument.create(this.toPath(model.uri), this._languageId, model.version, result);
+            jsonDocument = this._languageService.parseJSONDocument(textDocument);
+            return this._languageService.doValidation(textDocument, jsonDocument);
+        })
 
-            throw e
-        }
-
-        let output;
-        try {
-            output = this.jsonnet.compile(path, documents,
-                this._languageSettings.extVars || new Map(),
-                this._languageSettings.tlaVars || new Map(),
-                this._languageSettings.libraries, ast)
-        } catch (e) {
-            if (e instanceof JsonnetError) {
-                let diagnostics = new Array(this.getDiagnosticFromJsonnetError(e));
-                return Promise.resolve(diagnostics)
-            }
-
-            throw e
-        }
-
-        const textDocument = jsonService.TextDocument.create(this.toPath(model.uri), this._languageId, model.version, output);
-
-        const jsonDocument = this._languageService.parseJSONDocument(textDocument);
-        let validationXhr = this._languageService.doValidation(textDocument, jsonDocument);
-
-        return validationXhr.then(data => {
+        return compileXhr.then(data => {
             let diagnostics = data.map(diagnosis => {
                 // @ts-ignore - because the interface is not exposed
                 let startNode = jsonDocument.getNodeFromOffset(textDocument.offsetAt(diagnosis.range.start));
@@ -142,25 +124,26 @@ export class JsonnetWorkerImpl implements JsonnetWorker {
                     range = jsonService.Range.create(0, 0, 0, 1);
                     message = diagnosis.message;
                 } else {
-                    let rootNode = this.jsonnet.findRootNode(ast);
-                    let jsonnetPath
-                    if (rootNode != null) {
-                        jsonnetPath = this.jsonnet.findNodeFromJsonPath(rootNode, startPath);
-                    }
-
-                    if (jsonnetPath == null) {
+                    range = this.jsonnet.getLocationOfPath(path, documents[path], startPath)
+                    if (range == null) {
                         range = jsonService.Range.create(0, 0, 0, 1);
-                    } else {
-                        range = this.jsonnet.getLocationOfNode(jsonnetPath)
                     }
 
-                    let value = Json.getNodeValue(startNode);
-                    message = diagnosis.message + '\n' + JSON.stringify(value, null, 2)
+                    // let value = Json.getNodeValue(startNode);
+                    message = diagnosis.message + ` (${startPath.join(".")})`
                 }
 
                 return jsonService.Diagnostic.create(range, message, 1, diagnosis.code, diagnosis.source, diagnosis.relatedInformation)
             });
+            console.log(diagnostics)
+
             return diagnostics
+        }).catch(e => {
+            if (e instanceof JsonnetError) {
+                return new Array(this.getDiagnosticFromJsonnetError(e));
+            } else {
+                throw e
+            }
         });
     }
 
@@ -178,9 +161,9 @@ export class JsonnetWorkerImpl implements JsonnetWorker {
         return uri.authority + uri.path
     }
 
-    private _getTextDocuments(models: IMirrorModel[]): Map<string, string> {
-        const files: Map<string, string> = new Map()
-        models.forEach(model => files.set(this.toPath(model.uri), model.getValue()))
+    private _getTextDocuments(models: IMirrorModel[]): FileMap {
+        const files: FileMap = {}
+        models.forEach(model => files[this.toPath(model.uri)] = model.getValue())
         return files
     }
 
@@ -189,40 +172,30 @@ export class JsonnetWorkerImpl implements JsonnetWorker {
         return Promise.resolve(textEdits);
     }
 
-    getJsonPaths(uri: Uri, ...jsonPaths: Array<string | number>[]): Array<monaco.IRange> {
-        const path = this.toPath(uri)
-        const model = this._ctx.getMirrorModels().find(model => this.toPath(model.uri) === path)
+    getJsonPaths(uri: Uri, ...jsonPaths: Array<string | number>[]): Promise<Array<monaco.IRange>> {
+        const filePath = this.toPath(uri)
+        const model = this._ctx.getMirrorModels().find(model => this.toPath(model.uri) === filePath)
         if (model == null) {
             throw Error("uri not found")
         }
 
-        const ast = this.jsonnet.parse(path, model.getValue());
+        return this.jsonnet.getLocationOfPaths(filePath, model.getValue(), jsonPaths).then(locations => {
+            return locations.map(locationOfNode => {
+                if(locationOfNode == null) {
+                    debugger
+                    return null
+                } else {
+                    return {
+                        startLineNumber: locationOfNode.start.line + 1, startColumn: locationOfNode.start.character,
+                        endLineNumber: locationOfNode.end.line + 1, endColumn: locationOfNode.end.character
+                    }
+                }
 
-        const rootNode = this.jsonnet.findRootNode(ast);
-        if (rootNode == null) {
-            return null
-        }
-
-        return jsonPaths.map(path => {
-            let jsonnetPath = this.jsonnet.findNodeFromJsonPath(rootNode, path);
-            if(jsonnetPath === rootNode) {
-                return null
-            }
-
-            let locationOfNode = this.jsonnet.getLocationOfNode(jsonnetPath);
-            if (locationOfNode == null) {
-                return null
-            }
-
-            return {
-                startLineNumber: locationOfNode.start.line + 1, startColumn: locationOfNode.start.character,
-                endLineNumber: locationOfNode.end.line + 1, endColumn: locationOfNode.end.character
-            }
+            })
         })
-
     }
 
-    compile(uri: Uri): string {
+    compile(uri: Uri): Promise<string> {
         const path = this.toPath(uri)
         let models = this._ctx.getMirrorModels();
         const model = models.find(model => this.toPath(model.uri) === path)
@@ -230,13 +203,11 @@ export class JsonnetWorkerImpl implements JsonnetWorker {
             throw Error("uri not found")
         }
 
-        const ast = this.jsonnet.parse(path, model.getValue());
-
         let documents = this._getTextDocuments(models);
         return this.jsonnet.compile(path, documents,
-            this._languageSettings.extVars || new Map(),
-            this._languageSettings.tlaVars || new Map(),
-            this._languageSettings.libraries, ast)
+            this._languageSettings.extVars || {},
+            this._languageSettings.tlaVars || {},
+            this._languageSettings.libraries)
     }
 }
 
@@ -251,7 +222,8 @@ export function create(ctx: IWorkerContext, createData: ICreateData): JsonnetWor
 }
 
 export interface JsonnetLanguageSettings extends LanguageSettings {
-    libraries: Array<Library>
-    extVars: Map<String, any>
-    tlaVars: Map<String, any>
+    libraries: Library
+    extVars: ExtCodes
+    tlaVars: TlaVars,
+    compilerUrl: string,
 }
