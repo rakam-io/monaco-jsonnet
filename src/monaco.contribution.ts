@@ -4,7 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 'use strict';
 
-import * as mode from './jsonMode';
+import * as mode from './jsonnetMode';
 
 import Emitter = monaco.Emitter;
 import IEvent = monaco.IEvent;
@@ -63,8 +63,8 @@ const diagnosticDefault: Required<monaco.languages.jsonnet.DiagnosticsOptions> =
 const modeConfigurationDefault: Required<monaco.languages.jsonnet.ModeConfiguration> = {
 	documentFormattingEdits: true,
 	documentRangeFormattingEdits: true,
-	completionItems: false,
-	hovers: false,
+	completionItems: true,
+	hovers: true,
 	documentSymbols: false,
 	foldingRanges: false,
 	diagnostics: true,
@@ -85,7 +85,7 @@ monaco.languages.jsonnet = createAPI();
 // --- Registration to monaco editor ---
 
 function getMode(): Promise<typeof mode> {
-	return import('./jsonMode');
+	return import('./jsonnetMode');
 }
 
 monaco.languages.register({

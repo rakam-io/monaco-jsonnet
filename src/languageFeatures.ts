@@ -196,14 +196,94 @@ export class HoverAdapter implements monaco.languages.HoverProvider {
         return this._worker(resource).then(worker => {
             // @ts-ignore
             const workerImpl = worker as JsonnetWorkerImpl
-            return workerImpl.doHover(resource.toString(), fromPosition(position));
+            return workerImpl.doHover(resource, fromPosition(position));
         }).then(info => {
             if (!info) {
                 return;
             }
-            return <monaco.languages.Hover>{
+            let r = <monaco.languages.Hover>{
                 range: toRange(info.range),
                 contents: toMarkedStringArray(info.contents)
+            };
+            return r;
+        });
+    }
+}
+
+function toCompletionItemKind(kind: number): monaco.languages.CompletionItemKind {
+    let mItemKind = monaco.languages.CompletionItemKind;
+
+    switch (kind) {
+        case jsonService.CompletionItemKind.Text: return mItemKind.Text;
+        case jsonService.CompletionItemKind.Method: return mItemKind.Method;
+        case jsonService.CompletionItemKind.Function: return mItemKind.Function;
+        case jsonService.CompletionItemKind.Constructor: return mItemKind.Constructor;
+        case jsonService.CompletionItemKind.Field: return mItemKind.Field;
+        case jsonService.CompletionItemKind.Variable: return mItemKind.Variable;
+        case jsonService.CompletionItemKind.Class: return mItemKind.Class;
+        case jsonService.CompletionItemKind.Interface: return mItemKind.Interface;
+        case jsonService.CompletionItemKind.Module: return mItemKind.Module;
+        case jsonService.CompletionItemKind.Property: return mItemKind.Property;
+        case jsonService.CompletionItemKind.Unit: return mItemKind.Unit;
+        case jsonService.CompletionItemKind.Value: return mItemKind.Value;
+        case jsonService.CompletionItemKind.Enum: return mItemKind.Enum;
+        case jsonService.CompletionItemKind.Keyword: return mItemKind.Keyword;
+        case jsonService.CompletionItemKind.Snippet: return mItemKind.Snippet;
+        case jsonService.CompletionItemKind.Color: return mItemKind.Color;
+        case jsonService.CompletionItemKind.File: return mItemKind.File;
+        case jsonService.CompletionItemKind.Reference: return mItemKind.Reference;
+    }
+    return mItemKind.Property;
+}
+
+export class CompletionAdapter implements monaco.languages.CompletionItemProvider {
+
+    constructor(private _worker: WorkerAccessor) {
+    }
+
+    public get triggerCharacters(): string[] {
+        return [' ', ':'];
+    }
+
+    provideCompletionItems(model: monaco.editor.IReadOnlyModel, position: Position, context: monaco.languages.CompletionContext, token: CancellationToken): Thenable<monaco.languages.CompletionList> {
+        const resource = model.uri;
+
+        return this._worker(resource).then(worker => {
+            return worker.doComplete(resource, fromPosition(position));
+        }).then(info => {
+            if (!info) {
+                return;
+            }
+            const wordInfo = model.getWordUntilPosition(position);
+            const wordRange = new Range(position.lineNumber, wordInfo.startColumn, position.lineNumber, wordInfo.endColumn);
+
+            let items: monaco.languages.CompletionItem[] = info.items.map(entry => {
+                let item: monaco.languages.CompletionItem = {
+                    label: entry.label,
+                    insertText: entry.insertText || entry.label,
+                    sortText: entry.sortText,
+                    filterText: entry.filterText,
+                    documentation: entry.documentation,
+                    detail: entry.detail,
+                    range: wordRange,
+                    kind: toCompletionItemKind(entry.kind),
+                };
+                if (entry.textEdit) {
+                    item.range = toRange(entry.textEdit.range);
+                    item.insertText = entry.textEdit.newText;
+                }
+                if (entry.additionalTextEdits) {
+                    item.additionalTextEdits = entry.additionalTextEdits.map(toTextEdit)
+                }
+                if (entry.insertTextFormat === jsonService.InsertTextFormat.Snippet) {
+                    item.insertTextRules = monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet;
+                }
+                return item;
+            });
+
+            return {
+                isIncomplete: info.isIncomplete,
+                suggestions: items
             };
         });
     }
@@ -220,7 +300,7 @@ export class DocumentFormattingEditProvider implements monaco.languages.Document
         return this._worker(resource).then(worker => {
             // @ts-ignore
             const workerImpl = worker as JsonnetWorkerImpl
-            return workerImpl.format(resource.toString(), options).then(edits => {
+            return workerImpl.format(resource, options).then(edits => {
                 if (!edits || edits.length === 0) {
                     return;
                 }

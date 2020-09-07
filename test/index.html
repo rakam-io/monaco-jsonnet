@@ -281,7 +281,7 @@
       const host = 'https://app.rakam.io'
       const schema = [
         {
-          uri: 'model.schema',
+          uri: 'http://docs.rakam.io/schema/model',
           fileMatch: ['*.model.json'],
           schema: {'$ref': host + '/schema/model.schema.json'}
         },
@@ -294,7 +294,7 @@
           }
         },
         {
-          uri: 'config.schema',
+          uri: 'http://docs.rakam.io/schema/config',
           fileMatch: ['_config.json'],
           schema: {'$ref': host + '/schema/config.schema.json'}
         }
@@ -313,7 +313,8 @@
         // }
       ]
 
-      const libraries = {'util.libsonnet' :`{
+      const libraries = {
+        'util.libsonnet': `{
   generate_jinja_header(obj)::
     std.join('', ['{%% set %s = %s %%} ' % [f, std.manifestPython(obj[f])] for f in std.objectFields(obj)]),
   generate_model_name_from_file(name)::
@@ -326,7 +327,8 @@
       if std.objectHas(target, 'schema') then target.schema else null,
       target.table,
     ]))),
-}`}
+}`
+      }
       monaco.languages.jsonnet.jsonnetDefaults.setDiagnosticsOptions({
         validate: true,
         allowComments: true,
@@ -349,8 +351,8 @@
         const uri = monaco.Uri.from({path: file, scheme: 'git'})
         models[file] = monaco.editor.createModel(files[file], null, uri)
       })
-        console.log(models)
-        window.models = models
+      console.log(models)
+      window.models = models
 
       const editor = monaco.editor.create(document.getElementById('container'), {
         model: models['_config.jsonnet'],
@@ -371,42 +373,43 @@
 
       }, '')
 
-      monaco.languages.registerCodeLensProvider('jsonnet', {
-        provideCodeLenses: function (model, token) {
-          if (model.uri.path === '_config.jsonnet') {
-            const a = monaco.languages.jsonnet.getWorker().then(workerXhr => {
-              return workerXhr().then(worker => {
-                const ourPaths = [['version'], ['path']]
-                return worker.getJsonPaths(new monaco.Uri('git', null, '_config.jsonnet'), ...ourPaths).then(jsonnetPaths => {
-                  const codeLenses = []
-                  jsonnetPaths.forEach((range, idx) => {
-                    if (range == null) return
-                    let id = ourPaths[idx].join('.')
-                    codeLenses.push({
-                      range: range,
-                      id: id,
-                      command: {
-                        id: commandId,
-                        title: id
-                      }
-                    })
-                  })
-
-                  return {lenses: codeLenses}
-                })
-              })
-            })
-
-            console.log(a)
-            a.then(c => console.log(c))
-
-            return a
-          }
-        },
-        resolveCodeLens: function (model, codeLens, token) {
-          return codeLens
-        }
-      })
+      // monaco.languages.registerCodeLensProvider('jsonnet', {
+      //   provideCodeLenses: function (model, token) {
+      //     if (model.uri.path === '_config.jsonnet') {
+      //       const a = monaco.languages.jsonnet.getWorker().then(workerXhr => {
+      //         return workerXhr().then(worker => {
+      //           const ourPaths = [['version'], ['path']]
+      //           return worker.getJsonPaths(new monaco.Uri('git', null, '_config.jsonnet'), ...ourPaths).then(jsonnetPaths => {
+      //             debugger
+      //             const codeLenses = []
+      //             jsonnetPaths.forEach((range, idx) => {
+      //               if (range == null) return
+      //               let id = ourPaths[idx].join('.')
+      //               codeLenses.push({
+      //                 range: range,
+      //                 id: id,
+      //                 command: {
+      //                   id: commandId,
+      //                   title: id
+      //                 }
+      //               })
+      //             })
+      //
+      //             return {lenses: codeLenses}
+      //           })
+      //         })
+      //       })
+      //
+      //       console.log(a)
+      //       a.then(c => console.log(c))
+      //
+      //       return a
+      //     }
+      //   },
+      //   resolveCodeLens: function (model, codeLens, token) {
+      //     return codeLens
+      //   }
+      // })
     }
   )
 </script>
