@@ -14,7 +14,7 @@ helpers.packageESM({
 	esmDestination: 'release/esm',
 	entryPoints: [
 		'monaco.contribution.js',
-		'jsonMode.js',
+		'jsonnetMode.js',
 		'jsonnet.worker.js'
 	],
 	resolveAlias: {

@@ -236,6 +236,30 @@ function toCompletionItemKind(kind: number): monaco.languages.CompletionItemKind
     return mItemKind.Property;
 }
 
+interface InsertReplaceEdit {
+    /**
+     * The string to be inserted.
+     */
+    newText: string;
+    /**
+     * The range if the insert is requested
+     */
+    insert: jsonService.Range;
+    /**
+     * The range if the replace is requested.
+     */
+    replace: jsonService.Range;
+}
+
+function isInsertReplaceEdit(
+    edit: jsonService.TextEdit | InsertReplaceEdit
+): edit is InsertReplaceEdit {
+    return (
+        typeof (<InsertReplaceEdit>edit).insert !== 'undefined' &&
+        typeof (<InsertReplaceEdit>edit).replace !== 'undefined'
+    );
+}
+
 export class CompletionAdapter implements monaco.languages.CompletionItemProvider {
 
     constructor(private _worker: WorkerAccessor) {
@@ -269,7 +293,14 @@ export class CompletionAdapter implements monaco.languages.CompletionItemProvide
                     kind: toCompletionItemKind(entry.kind),
                 };
                 if (entry.textEdit) {
-                    item.range = toRange(entry.textEdit.range);
+                    if (isInsertReplaceEdit(entry.textEdit)) {
+                        item.range = {
+                            insert: toRange(entry.textEdit.insert),
+                            replace: toRange(entry.textEdit.replace)
+                        };
+                    } else {
+                        item.range = toRange(entry.textEdit.range);
+                    }
                     item.insertText = entry.textEdit.newText;
                 }
                 if (entry.additionalTextEdits) {

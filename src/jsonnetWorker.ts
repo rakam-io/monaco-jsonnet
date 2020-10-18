@@ -101,6 +101,7 @@ export class JsonnetWorkerImpl implements JsonnetWorker {
             return Promise.resolve(new Array())
         }
         const path = this.toPath(uri)
+
         const models = this._ctx.getMirrorModels();
         let documents = this._getTextDocuments(models);
 
@@ -122,7 +123,6 @@ export class JsonnetWorkerImpl implements JsonnetWorker {
                 let startNode = jsonDocument.getNodeFromOffset(textDocument.offsetAt(diagnosis.range.start));
                 // @ts-ignore
                 // let endNode = jsonDocument.getNodeFromOffset(textDocument.offsetAt(range.end));
-
                 let startPath = Json.getNodePath(startNode)
                 let range, message;
                 if (startPath.length === 0) {
@@ -137,7 +137,9 @@ export class JsonnetWorkerImpl implements JsonnetWorker {
                     // let value = Json.getNodeValue(startNode);
                     message = diagnosis.message + ` (${startPath.join(".")})`
                 }
-                return jsonService.Diagnostic.create(range, message, 1, diagnosis.code, diagnosis.source, diagnosis.relatedInformation)
+                // TODO
+                // return jsonService.Diagnostic.create(range, message, 1, diagnosis.code, diagnosis.source, diagnosis.relatedInformation)
+                return jsonService.Diagnostic.create(range, message, 1, 1, diagnosis.source, diagnosis.relatedInformation)
             });
             return diagnostics
         }).catch(e => {
@@ -154,7 +156,6 @@ export class JsonnetWorkerImpl implements JsonnetWorker {
     }
 
     doComplete(uri: monaco.Uri, position: jsonService.Position): Thenable<jsonService.CompletionList> {
-        console.log('enter')
         const uriPath = this.toPath(uri)
         const model = this._ctx.getMirrorModels().find(model => this.toPath(model.uri) === uriPath)
 
@@ -189,6 +190,9 @@ export class JsonnetWorkerImpl implements JsonnetWorker {
         const document = jsonService.TextDocument.create(uriPath, this._languageId, model.version, json);
         let jsonDocument = this._languageService.parseJSONDocument(document);
         let jsonPathFromLocation = this.jsonnet.getJsonPathFromLocation(value, position.line, position.character);
+        if(jsonPathFromLocation == null) {
+            return null
+        }
         let node = Json.findNodeAtLocation(jsonDocument.root, jsonPathFromLocation);
         let jsonPos = {character: node.offset, line: 0};
         return this._languageService.doHover(document, jsonPos, jsonDocument).then(d => {

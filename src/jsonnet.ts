@@ -20,13 +20,25 @@ export class JsonnetError {
     }
 }
 
+export interface BaseMenuItem {
+    title: string;
+    icon: string;
+}
+
 export default class JsonnetVM {
     loadPromise = null
-    compilerCache : LruCache
+    compilerCache: LruCache
 
     constructor(compilerUrl) {
         this.compilerCache = new LruCache()
         const go = new Go();
+        if (!WebAssembly.instantiateStreaming) { // polyfill
+            WebAssembly.instantiateStreaming = async (resp, importObject) => {
+                const source = await (await resp).arrayBuffer();
+                return await WebAssembly.instantiate(source, importObject);
+            };
+        }
+
         this.loadPromise = WebAssembly.instantiateStreaming(fetch(compilerUrl), go.importObject)
             .then(result => {
                 go.run(result.instance);
@@ -46,14 +58,17 @@ export default class JsonnetVM {
     compile(path: string, files: FileMap, extCodes: ExtCodes, tlaVars: TlaVars, libraries: Library): Promise<string> {
         let content = files[path];
         const existingCache = this.compilerCache.get(path, content)
-        if(existingCache != null) {
+        if (existingCache != null) {
             return Promise.resolve(existingCache)
         }
 
         return this.loadPromise.then(() => {
+            // console.time(`compiling ${path}`)
+
             // @ts-ignore
             const result = self.compile(path, files, extCodes, tlaVars, libraries)
-            // debugger
+
+            // console.timeEnd(`compiling ${path}`)
 
             if (result.error != null) {
                 // @ts-ignore
@@ -74,7 +89,7 @@ export default class JsonnetVM {
         })
     }
 
-    getLocationOfPath(fileName: string, content: string, path: Array<string | number>, failSafe : boolean): jsonService.Range {
+    getLocationOfPath(fileName: string, content: string, path: Array<string | number>, failSafe: boolean): jsonService.Range {
         // @ts-ignore
         if (self.findLocationFromJsonPath == null) {
             throw Error("compiler is not loaded!")
@@ -84,7 +99,7 @@ export default class JsonnetVM {
         return value;
     }
 
-    getJsonPathFromLocation(content: string, line: number, character : number): Array<string | number> {
+    getJsonPathFromLocation(content: string, line: number, character: number): Array<string | number> {
         // @ts-ignore
         if (self.getJsonPathFromLocation == null) {
             throw Error("compiler is not loaded!")
@@ -94,7 +109,7 @@ export default class JsonnetVM {
         return value;
     }
 
-    getLastOutput(path: string) : KeyValuePair  {
+    getLastOutput(path: string): KeyValuePair {
         return this.compilerCache.values.get(path);
     }
 }
@@ -111,7 +126,7 @@ class LruCache {
     public get(path: string, content: string): string {
         // the library and extcode will be same as the configuration change causes the worker to be restarted.
         const value = this.values.get(path);
-        if(value && value.jsonnet == content) {
+        if (value && value.jsonnet == content) {
             return value.json
         }
     }

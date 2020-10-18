@@ -21,7 +21,7 @@ const BUNDLED_FILE_HEADER = [
 ].join('\n')
 
 bundleOne('monaco.contribution')
-bundleOne('jsonMode')
+bundleOne('jsonnetMode')
 bundleOne('jsonnetWorker')
 
 function bundleOne (moduleId, exclude) {
@@ -63,7 +63,6 @@ function bundleOne (moduleId, exclude) {
     const devFilePath = path.join(REPO_ROOT, 'release/dev/' + moduleId + '.js')
     const minFilePath = path.join(REPO_ROOT, 'release/min/' + moduleId + '.js')
     const fileContents = fs.readFileSync(devFilePath).toString()
-    console.log()
     console.log(`Minifying ${devFilePath}...`)
     const result = Terser.minify(fileContents, {
       output: {
