@@ -1,6 +1,6 @@
 {
   "name": "monaco-jsonnet",
-  "version": "3.0.3-beta",
+  "version": "3.0.6-beta",
   "description": "Jsonnet plugin for the Monaco Editor",
   "scripts": {
     "compile": "mrmdir ./out && tsc -p ./src/tsconfig.json && tsc -p ./src/tsconfig.esm.json",

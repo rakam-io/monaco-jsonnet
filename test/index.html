@@ -9,13 +9,12 @@
 </head>
 <body>
 
-<h2>Monaco Editor JSON test page</h2>
-<div id="container" style="width:800px;height:600px;border:1px solid grey"></div>
+<div id="container" style="width:1200px;height:800px"></div>
 
 <script>
   // Loading basic-languages to get the json language definition
   var paths = {
-    // 'vs/basic-languages': '../node_modules/monaco-languages/release/dev',
+    'vs/basic-languages': '../node_modules/monaco-languages/release/dev',
     'vs/language/jsonnet': '../out/amd',
     'jsonc-parser': '../node_modules/jsonc-parser/lib/umd/main',
     'vscode-json-languageservice': '../node_modules/vscode-json-languageservice/lib/umd/jsonLanguageService',
@@ -59,6 +58,18 @@
         'custom_events.models.jsonnet': 'local common = import \'common_schema.libsonnet\';\nlocal predefined = import \'custom_schema.libsonnet\';\n   \nlocal target = std.extVar(\'target\');\n\nlocal types = {\n  BOOLEAN: \'boolean\',\n  DECIMAL: \'double\',    \n  DOUBLE: \'double\', \n  INTEGER: \'integer\',\n  VARCHAR: \'string\',\n};\n\nstd.map(function(event_type)\n  local event_name = event_type.n;\n  local db_name = event_type.db;\n\n  local defined = if std.objectHas(predefined, event_name) then predefined[event_name] else null;\n\n  local definedProperties = if defined != null && std.objectHas(defined, \'properties\') then defined.properties else {};\n  local dimensions_for_event = std.foldl(function(a, b) a + b, std.map(function(prop) {\n                                 [prop.n]: {\n                                   sql: \'cast({{TABLE}}.properties:"%(name)s" as %(type)s)\' % { type: prop.t, name: prop.db },\n                                   label: if std.objectHas(definedProperties, prop.n) && std.objectHas(definedProperties[prop.n], \'label\') then definedProperties[prop.n].label\n                                   else if std.objectHas(common.properties, prop.n) && std.objectHas(common.properties[prop.n], \'label\') then common.properties[prop.n].label\n                                   else null,\n                                   type: types[prop.t],\n                                   category: if std.objectHas(definedProperties, prop.n) && std.objectHas(definedProperties[prop.n], \'category\') then definedProperties[prop.n].category\n                                   else if std.objectHas(common.properties, prop.n) && std.objectHas(common.properties[prop.n], \'category\') then common.properties[prop.n].category\n                                   else if std.startsWith(prop.db, \'_\') then \'SDK\'\n                                   else \'Event Property\',\n                                 },\n                               }, event_type.props\n), {})\n                               +\n                               if defined != null && std.objectHas(defined, \'dimensions\') then defined.dimensions else {};\n  {\n    name: \'rakam_event_\' + event_name,\n    label: (if defined != null then \'[SDK] \' else \'\') + event_name,\n    sql: |||\n      select * from "%(database)s"."%(schema)s"."%(table)s" where event_type = \'%(db_name)s\'\n    ||| % { db_name: db_name, database: target.database, schema: target.schema, table: target.table },\n    measures: common.measures + if defined != null && std.objectHas(defined, \'measures\') then defined.measures else {},\n    mappings: common.mappings,\n    relations: if defined != null && std.objectHas(defined, \'relations\') then defined.relations else {},\n    category: \'Rakam Events\',\n    dimensions: dimensions_for_event + {\n    event_type: {\n      column: \'EVENT_TYPE\',\n      type: \'string\',\n    },\n    time: {\n      column: \'_TIME\',\n      description: \'\',\n      type: \'timestamp\',\n    },\n    server_time: {\n      column: \'_SERVER_TIME\',\n      description: \'\',\n      type: \'timestamp\',\n    },\n    user: {\n      column: \'_USER\',\n      type: \'string\',\n      description: \'\',\n    },\n  },\n  }, std.extVar(\'event_schema\'))\n',
         'custom_schema.libsonnet': 'local payment = {\n    measures: {\n      app_coin: {\n        sql: \'{{dimension.value}}\',\n        aggregation: \'sum\',\n      },\n      app_coin_in_euro: {\n        sql: \'0.02888766*{{dimension.value}}\',\n        aggregation: \'sum\',\n        reportOptions: {\n          suffix: \' EUR\'\n        }\n      },\n      app_coin_in_usd: {\n        sql: \'0.03194*{{dimension.value}}\',\n        aggregation: \'sum\',\n        reportOptions: {\n          suffix: \' USD\'\n        }\n      }\n    },\n    // define category and descriptions for properties\n    properties: {\n      value: {\n        category: \'Revenue\',\n        type: \'double\'\n      }\n    },\n    dimensions: {\n      example_computed_dimension: {\n        category: \'Example Category\',\n        type: \'string\',\n        sql: \'concat({{dimension.product_name}}, {{dimension.product_id}})\',\n      },\n    }\n  };\n\n{\n  wallet_payment_conclusion: payment,\n  wallet_top_up_conclusion: payment,\n  pageview: {\n    measures: {\n      time_on_page: {\n        aggregation: \'average\',\n        sql:\'LEAST(GREATEST(0, {{dimension.time_on_page}}), 1000)\',\n        description: \'The duration spent on the page when the user visits the pages. If the value is `null`, then the users bounced and the sample data is not enough to calculate the time on page.\',\n        filters: [\n          {dimension: \'time_on_page\', valueType: \'unknown\', operator: \'isSet\'}\n        ],\n        reportOptions: {\n          suffix: \' seconds\'\n        },\n      }\n    }\n  },\n  session_start: {\n    measures: {\n      unique_users_today: {\n        aggregation: \'countUnique\',\n        sql: \'{{dimension.user}}\',\n        filters: [\n          { dimension: \'time\', operator: \'between\', value: \'P1D\', valueType: \'timestamp\' },\n        ],\n      },\n      unique_users__week: {\n        aggregation: \'countUnique\',\n        sql: \'{{dimension.user}}\',\n\n\n        ///testststst\n        filters: [\n          { dimension: \'time\', operator: \'between\', value: \'P1W\', valueType: \'timestamp\' },\n        ],\n      },\n    },\n    dimensions: {\n      week_over_week: {\n        category: \'Period-over-period\',\n        sql: "case when (mod(current_date() - cast({{TABLE}}._time as date), 7) = 0) then cast((current_date() - cast({{TABLE}}._time as date))/7 as number) || \' weeks ago\' else null end",\n        type: \'string\'\n      }\n    }\n  },\n  download: {\n    measures: {\n      yesterday_downloads: {\n        hidden: true,\n        aggregation: \'sum\',\n        sql: \'CASE WHEN {{dimension.time}} BETWEEN dateadd(day, -2, current_timestamp()) and dateadd(day, -1, current_timestamp()) then 1 else 0 end\'\n      },\n      today_downloads: {\n        hidden: true,\n        aggregation: \'sum\',\n        sql: \'CASE WHEN {{dimension.time}} BETWEEN dateadd(day, -1, current_timestamp()) and current_timestamp() then 1 else 0 end\'\n      },\n      last_week_downloads: {\n        hidden: true,\n        aggregation: \'sum\',\n        sql: \'CASE WHEN {{dimension.time}} BETWEEN dateadd(day, -8, current_timestamp()) and dateadd(day, -7, current_timestamp()) then 1 else 0 end\'\n      },\n      growth_today: {\n        label: \'Daily Donwload Growth\',\n        sql: \'CASE WHEN {{measure.yesterday_downloads}} > 500 then ({{measure.today_downloads}} - {{measure.yesterday_downloads}}) * 100 / {{measure.yesterday_downloads}} else 0 end\',\n        reportOptions: {\n          suffix: \'%\'\n        }\n      },\n      growth_this_week: {\n        label: \'Weekly Download Growth\',\n        sql: \'CASE WHEN {{measure.last_week_downloads}} > 500 then ({{measure.today_downloads}} - {{measure.last_week_downloads}}) * 100 / {{measure.last_week_downloads}} else 0 end\',\n        reportOptions: {\n          suffix: \'%\'\n        }\n      }\n    }\n  }\n}\n',
         'event_schema.libsonnet': '[{          \'n\': \'asv_2053_similar_apps_participating\',          \'db\': \'asv_2053_similar_apps_participating\',          \'props\': [ { "db": "_gps_enabled", "n": "gps_enabled", "t": "BOOLEAN" }, { "db": "_city", "n": "city", "t": "VARCHAR" }, { "db": "_os_version", "n": "os_version", "t": "VARCHAR" }, { "db": "_os_name", "n": "os_name", "t": "VARCHAR" }, { "db": "utm_source", "n": "utm_source", "t": "VARCHAR" }, { "db": "_version_name", "n": "version_name", "t": "VARCHAR" }, { "db": "_latitude", "n": "latitude", "t": "DECIMAL" }, { "db": "_limit_ad_tracking", "n": "limit_ad_tracking", "t": "BOOLEAN" }, { "db": "_session_id", "n": "session_id", "t": "DOUBLE" }, { "db": "_id", "n": "id", "t": "VARCHAR" }, { "db": "_android_adid", "n": "android_adid", "t": "VARCHAR" }, { "db": "_local_id", "n": "local_id", "t": "DECIMAL" }, { "db": "group", "n": "group", "t": "VARCHAR" }, { "db": "_region", "n": "region", "t": "VARCHAR" }, { "db": "entry_point", "n": "entry_point", "t": "VARCHAR" }, { "db": "_device_id", "n": "device_id", "t": "VARCHAR" }, { "db": "first_session", "n": "first_session", "t": "BOOLEAN" }, { "db": "_country_code", "n": "country_code", "t": "VARCHAR" }, { "db": "_device_model", "n": "device_model", "t": "VARCHAR" }, { "db": "aptoide_package", "n": "aptoide_package", "t": "VARCHAR" }, { "db": "version_code", "n": "version_code", "t": "DECIMAL" }, { "db": "__ip", "n": "ip", "t": "VARCHAR" }, { "db": "_device_manufacturer", "n": "device_manufacturer", "t": "VARCHAR" }, { "db": "_library_name", "n": "library_name", "t": "VARCHAR" }, { "db": "utm_medium", "n": "utm_medium", "t": "VARCHAR" }, { "db": "utm_content", "n": "utm_content", "t": "VARCHAR" }, { "db": "utm_campaign", "n": "utm_campaign", "t": "VARCHAR" }, { "db": "_library_version", "n": "library_version", "t": "VARCHAR" }, { "db": "_device_brand", "n": "device_brand", "t": "VARCHAR" }, { "db": "_platform", "n": "platform", "t": "VARCHAR" }, { "db": "_longitude", "n": "longitude", "t": "DECIMAL" }, { "db": "_carrier", "n": "carrier", "t": "VARCHAR" }, { "db": "gms", "n": "gms", "t": "VARCHAR" }, { "db": "_language", "n": "language", "t": "VARCHAR" }, { "db": "_timezone", "n": "timezone", "t": "VARCHAR" }, { "db": "ads", "n": "ads", "t": "VARCHAR" } ]        }, {          \'n\': \'install\',          \'db\': \'install\',          \'props\': [ { "db": "_gps_enabled", "n": "gps_enabled", "t": "BOOLEAN" }, { "db": "_city", "n": "city", "t": "VARCHAR" }, { "db": "_os_version", "n": "os_version", "t": "VARCHAR" }, { "db": "_os_name", "n": "os_name", "t": "VARCHAR" }, { "db": "utm_source", "n": "utm_source", "t": "VARCHAR" }, { "db": "_version_name", "n": "version_name", "t": "VARCHAR" }, { "db": "_latitude", "n": "latitude", "t": "DECIMAL" }, { "db": "_limit_ad_tracking", "n": "limit_ad_tracking", "t": "BOOLEAN" }, { "db": "_session_id", "n": "session_id", "t": "DOUBLE" }, { "db": "_id", "n": "id", "t": "VARCHAR" }, { "db": "_android_adid", "n": "android_adid", "t": "VARCHAR" }, { "db": "_local_id", "n": "local_id", "t": "DECIMAL" }, { "db": "group", "n": "group", "t": "VARCHAR" }, { "db": "_region", "n": "region", "t": "VARCHAR" }, { "db": "entry_point", "n": "entry_point", "t": "VARCHAR" }, { "db": "_device_id", "n": "device_id", "t": "VARCHAR" }, { "db": "first_session", "n": "first_session", "t": "BOOLEAN" }, { "db": "_country_code", "n": "country_code", "t": "VARCHAR" }, { "db": "_device_model", "n": "device_model", "t": "VARCHAR" }, { "db": "aptoide_package", "n": "aptoide_package", "t": "VARCHAR" }, { "db": "version_code", "n": "version_code", "t": "DECIMAL" }, { "db": "__ip", "n": "ip", "t": "VARCHAR" }, { "db": "_device_manufacturer", "n": "device_manufacturer", "t": "VARCHAR" }, { "db": "_library_name", "n": "library_name", "t": "VARCHAR" }, { "db": "utm_medium", "n": "utm_medium", "t": "VARCHAR" }, { "db": "utm_content", "n": "utm_content", "t": "VARCHAR" }, { "db": "utm_campaign", "n": "utm_campaign", "t": "VARCHAR" }, { "db": "_library_version", "n": "library_version", "t": "VARCHAR" }, { "db": "_device_brand", "n": "device_brand", "t": "VARCHAR" }, { "db": "_platform", "n": "platform", "t": "VARCHAR" }, { "db": "_longitude", "n": "longitude", "t": "DECIMAL" }, { "db": "_carrier", "n": "carrier", "t": "VARCHAR" }, { "db": "gms", "n": "gms", "t": "VARCHAR" }, { "db": "_language", "n": "language", "t": "VARCHAR" }, { "db": "_timezone", "n": "timezone", "t": "VARCHAR" }, { "db": "ads", "n": "ads", "t": "VARCHAR" } ]        }, {          \'n\': \'web_app_download_button_hit\',          \'db\': \'web_app_download_button_hit\',          \'props\': [ { "db": "_gps_enabled", "n": "gps_enabled", "t": "BOOLEAN" }, { "db": "_city", "n": "city", "t": "VARCHAR" }, { "db": "_os_version", "n": "os_version", "t": "VARCHAR" }, { "db": "_os_name", "n": "os_name", "t": "VARCHAR" }, { "db": "utm_source", "n": "utm_source", "t": "VARCHAR" }, { "db": "_version_name", "n": "version_name", "t": "VARCHAR" }, { "db": "_latitude", "n": "latitude", "t": "DECIMAL" }, { "db": "_limit_ad_tracking", "n": "limit_ad_tracking", "t": "BOOLEAN" }, { "db": "_session_id", "n": "session_id", "t": "DOUBLE" }, { "db": "_id", "n": "id", "t": "VARCHAR" }, { "db": "_android_adid", "n": "android_adid", "t": "VARCHAR" }, { "db": "_local_id", "n": "local_id", "t": "DECIMAL" }, { "db": "group", "n": "group", "t": "VARCHAR" }, { "db": "_region", "n": "region", "t": "VARCHAR" }, { "db": "entry_point", "n": "entry_point", "t": "VARCHAR" }, { "db": "_device_id", "n": "device_id", "t": "VARCHAR" }, { "db": "first_session", "n": "first_session", "t": "BOOLEAN" }, { "db": "_country_code", "n": "country_code", "t": "VARCHAR" }, { "db": "_device_model", "n": "device_model", "t": "VARCHAR" }, { "db": "aptoide_package", "n": "aptoide_package", "t": "VARCHAR" }, { "db": "version_code", "n": "version_code", "t": "DECIMAL" }, { "db": "__ip", "n": "ip", "t": "VARCHAR" }, { "db": "_device_manufacturer", "n": "device_manufacturer", "t": "VARCHAR" }, { "db": "_library_name", "n": "library_name", "t": "VARCHAR" }, { "db": "utm_medium", "n": "utm_medium", "t": "VARCHAR" }, { "db": "utm_content", "n": "utm_content", "t": "VARCHAR" }, { "db": "utm_campaign", "n": "utm_campaign", "t": "VARCHAR" }, { "db": "_library_version", "n": "library_version", "t": "VARCHAR" }, { "db": "_device_brand", "n": "device_brand", "t": "VARCHAR" }, { "db": "_platform", "n": "platform", "t": "VARCHAR" }, { "db": "_longitude", "n": "longitude", "t": "DECIMAL" }, { "db": "_carrier", "n": "carrier", "t": "VARCHAR" }, { "db": "gms", "n": "gms", "t": "VARCHAR" }, { "db": "_language", "n": "language", "t": "VARCHAR" }, { "db": "_timezone", "n": "timezone", "t": "VARCHAR" }, { "db": "ads", "n": "ads", "t": "VARCHAR" } ]        }, {          \'n\': \'aptoide_first_launch\',          \'db\': \'aptoide_first_launch\',          \'props\': [ { "db": "_gps_enabled", "n": "gps_enabled", "t": "BOOLEAN" }, { "db": "_city", "n": "city", "t": "VARCHAR" }, { "db": "_os_version", "n": "os_version", "t": "VARCHAR" }, { "db": "_os_name", "n": "os_name", "t": "VARCHAR" }, { "db": "utm_source", "n": "utm_source", "t": "VARCHAR" }, { "db": "_version_name", "n": "version_name", "t": "VARCHAR" }, { "db": "_latitude", "n": "latitude", "t": "DECIMAL" }, { "db": "_limit_ad_tracking", "n": "limit_ad_tracking", "t": "BOOLEAN" }, { "db": "_session_id", "n": "session_id", "t": "DOUBLE" }, { "db": "_id", "n": "id", "t": "VARCHAR" }, { "db": "_android_adid", "n": "android_adid", "t": "VARCHAR" }, { "db": "_local_id", "n": "local_id", "t": "DECIMAL" }, { "db": "group", "n": "group", "t": "VARCHAR" }, { "db": "_region", "n": "region", "t": "VARCHAR" }, { "db": "entry_point", "n": "entry_point", "t": "VARCHAR" }, { "db": "_device_id", "n": "device_id", "t": "VARCHAR" }, { "db": "first_session", "n": "first_session", "t": "BOOLEAN" }, { "db": "_country_code", "n": "country_code", "t": "VARCHAR" }, { "db": "_device_model", "n": "device_model", "t": "VARCHAR" }, { "db": "aptoide_package", "n": "aptoide_package", "t": "VARCHAR" }, { "db": "version_code", "n": "version_code", "t": "DECIMAL" }, { "db": "__ip", "n": "ip", "t": "VARCHAR" }, { "db": "_device_manufacturer", "n": "device_manufacturer", "t": "VARCHAR" }, { "db": "_library_name", "n": "library_name", "t": "VARCHAR" }, { "db": "utm_medium", "n": "utm_medium", "t": "VARCHAR" }, { "db": "utm_content", "n": "utm_content", "t": "VARCHAR" }, { "db": "utm_campaign", "n": "utm_campaign", "t": "VARCHAR" }, { "db": "_library_version", "n": "library_version", "t": "VARCHAR" }, { "db": "_device_brand", "n": "device_brand", "t": "VARCHAR" }, { "db": "_platform", "n": "platform", "t": "VARCHAR" }, { "db": "_longitude", "n": "longitude", "t": "DECIMAL" }, { "db": "_carrier", "n": "carrier", "t": "VARCHAR" }, { "db": "gms", "n": "gms", "t": "VARCHAR" }, { "db": "_language", "n": "language", "t": "VARCHAR" }, { "db": "_timezone", "n": "timezone", "t": "VARCHAR" }, { "db": "ads", "n": "ads", "t": "VARCHAR" } ]        }, {          \'n\': \'search_result_click\',          \'db\': \'search_result_click\',          \'props\': [ { "db": "_gps_enabled", "n": "gps_enabled", "t": "BOOLEAN" }, { "db": "_city", "n": "city", "t": "VARCHAR" }, { "db": "_os_version", "n": "os_version", "t": "VARCHAR" }, { "db": "_os_name", "n": "os_name", "t": "VARCHAR" }, { "db": "utm_source", "n": "utm_source", "t": "VARCHAR" }, { "db": "_version_name", "n": "version_name", "t": "VARCHAR" }, { "db": "_latitude", "n": "latitude", "t": "DECIMAL" }, { "db": "_limit_ad_tracking", "n": "limit_ad_tracking", "t": "BOOLEAN" }, { "db": "_session_id", "n": "session_id", "t": "DOUBLE" }, { "db": "_id", "n": "id", "t": "VARCHAR" }, { "db": "_android_adid", "n": "android_adid", "t": "VARCHAR" }, { "db": "_local_id", "n": "local_id", "t": "DECIMAL" }, { "db": "group", "n": "group", "t": "VARCHAR" }, { "db": "_region", "n": "region", "t": "VARCHAR" }, { "db": "entry_point", "n": "entry_point", "t": "VARCHAR" }, { "db": "_device_id", "n": "device_id", "t": "VARCHAR" }, { "db": "first_session", "n": "first_session", "t": "BOOLEAN" }, { "db": "_country_code", "n": "country_code", "t": "VARCHAR" }, { "db": "_device_model", "n": "device_model", "t": "VARCHAR" }, { "db": "aptoide_package", "n": "aptoide_package", "t": "VARCHAR" }, { "db": "version_code", "n": "version_code", "t": "DECIMAL" }, { "db": "__ip", "n": "ip", "t": "VARCHAR" }, { "db": "_device_manufacturer", "n": "device_manufacturer", "t": "VARCHAR" }, { "db": "_library_name", "n": "library_name", "t": "VARCHAR" }, { "db": "utm_medium", "n": "utm_medium", "t": "VARCHAR" }, { "db": "utm_content", "n": "utm_content", "t": "VARCHAR" }, { "db": "utm_campaign", "n": "utm_campaign", "t": "VARCHAR" }, { "db": "_library_version", "n": "library_version", "t": "VARCHAR" }, { "db": "_device_brand", "n": "device_brand", "t": "VARCHAR" }, { "db": "_platform", "n": "platform", "t": "VARCHAR" }, { "db": "_longitude", "n": "longitude", "t": "DECIMAL" }, { "db": "_carrier", "n": "carrier", "t": "VARCHAR" }, { "db": "gms", "n": "gms", "t": "VARCHAR" }, { "db": "_language", "n": "language", "t": "VARCHAR" }, { "db": "_timezone", "n": "timezone", "t": "VARCHAR" }, { "db": "ads", "n": "ads", "t": "VARCHAR" } ]        }]',
+        'test.model.jsonnet': '  {\n' +
+          '    name: \'test\',\n' +
+          '    target: {\n' +
+          '      database: \'ahmet\',\n' +
+          '      table: \'test\'\n' +
+          '    },\n' +
+          '    dimensions: {\n' +
+          '      dimensionName: {\n' +
+          '        column: "campaign_name"\n' +
+          '      }\n' +
+          '    }\n' +
+          '  }\n',
         // 'invalid_schema.model.jsonnet': 'local common = import \'common_schema.libsonnet\';\nlocal util = import \'util.libsonnet\'; \nlocal target = std.extVar(\'target\');\n\nlocal types = {\n  BOOLEAN: \'boolean\',\n  DECIMAL: \'double\',\n  DOUBLE: \'double\',\n  INTEGER: \'integer\',\n  VARCHAR: \'string\',\n};\n\nlocal dimensions = [\n  {\n    db: \'collection\',\n    n: \'collection\',\n    t: \'VARCHAR\',\n    desc: null,\n  },\n  {\n    db: \'property\',\n    n: \'property\',\n    t: \'VARCHAR\',\n    desc: \'The property the system failed to parse in the collection\',\n  },\n  {\n    db: \'type\',\n    n: \'type\',\n    t: \'VARCHAR\',\n    desc: \'The expected type for the field. The system failed to parse the value to this type.\',\n  },\n  {\n    db: \'event_id\',\n    n: \'event_id\',\n    t: \'VARCHAR\',\n    desc: \'The id of the corresponding event in the EVENTS table. You can use this id in order to join to that table and fix the historical data.\',\n  },\n  {\n    db: \'error_message\',\n    n: \'error_message\',\n    t: \'VARCHAR\',\n    desc: \'The error message thrown in the system parsing the property \',\n  },\n  {\n    db: \'encoded_value\',\n    n: \'encoded_value\',\n    t: \'VARCHAR\',\n    desc: \'aria-label="The invalid raw value encoded as JSON for that is sent to the API"\',\n  },\n];\n\n{\n  category: \'Rakam Events\',\n  name: \'rakam_invalid_schema\',\n  label: \'[System] Invalid Schema\',\n  description: \'Includes the parsing errors in the API. \',\n  sql: |||\n    select * from %(target)s where event_type = \'$invalid_schema\'\n  ||| % { target: util.generate_target_reference(target) },\n  measures: common.measures,\n  mappings: common.mappings,\n  dimensions: {\n    event_type: {\n      column: \'EVENT_TYPE\',\n      type: \'string\',\n    },\n    time: {\n      column: \'_TIME\',\n      description: \'\',\n      type: \'timestamp\',\n    },\n    server_time: {\n      column: \'_SERVER_TIME\',\n      description: \'\',\n      type: \'timestamp\',\n    },\n    user: {\n      column: \'_USER\',\n      type: \'string\',\n      description: \'\',\n    },\n  } + std.foldl(function(a, b) a + b, std.map(function(prop) {\n    [prop.n]: {\n      sql: \'{{TABLE}}.properties:"%(name)s"::%(type)s\' % { type: prop.t, name: prop.db },\n      category: if std.startsWith(prop.db, \'_\') then \'SDK\' else \'Event Property\',\n      type: types[prop.t],\n      description: prop.desc,\n    },\n  }, dimensions), {}),\n}\n',
         // 'user_attributes.jsonnet': '{\n  sql: |||\n    SELECT\n        DISTINCT F.KEY as PROP_DB,\n        LOWER(LTRIM(REGEXP_REPLACE(REGEXP_REPLACE(F.KEY, \'([a-z])([A-Z])\', \'\\1_\\2\'), \'[^a-zA-Z0-9_]\', \'\'), \'_\')) as PROP_NAME,\n        FALSE AS IS_IN_SET,\n        MODE(TYPEOF(f.VALUE)) OVER (PARTITION BY PROP_DB, TYPEOF(f.VALUE)) as TYPE\n    FROM\n        EVENTS E,\n        LATERAL FLATTEN(PROPERTIES:"$set", RECURSIVE=>FALSE) F\n    WHERE\n        _TIME > DATEADD(MINUTE, -60, current_timestamp)\n        AND TYPEOF(F.VALUE) IN (\'BOOLEAN\', \'DECIMAL\', \'DOUBLE\', \'INTEGER\', \'VARCHAR\')\n        AND EVENT_TYPE = \'$identify\'\n    UNION ALL\n    SELECT\n        DISTINCT F.KEY as PROP_DB,\n        LOWER(LTRIM(REGEXP_REPLACE(REGEXP_REPLACE(F.KEY, \'([a-z])([A-Z])\', \'\\1_\\2\'), \'[^a-zA-Z0-9_]\', \'\'), \'_\')) as PROP_NAME,\n        TRUE AS IS_IN_SET,\n        MODE(TYPEOF(f.VALUE)) OVER (PARTITION BY PROP_DB, TYPEOF(f.VALUE)) as TYPE\n    FROM\n        EVENTS E,\n        LATERAL FLATTEN(PROPERTIES, RECURSIVE=>FALSE) F\n    WHERE\n        _TIME > DATEADD(MINUTE, -60, current_timestamp)\n        AND TYPEOF(F.VALUE) IN (\'BOOLEAN\', \'DECIMAL\', \'DOUBLE\', \'INTEGER\', \'VARCHAR\')\n        AND EVENT_TYPE = \'$identify\'\n  |||,\n}\n'
       }
@@ -172,21 +183,95 @@
         'util.libsonnet': '{\n  generate_jinja_header(obj)::\n    std.join(\'\', [\'{%% set %s = %s %%} \' % [f, std.manifestPython(obj[f])] for f in std.objectFields(obj)]),\n  generate_model_name_from_file(name)::\n    local parts = std.split(name, \'/\');\n    std.strReplace(parts[std.length(parts) - 1], \'.model.jsonnet\', \'\'),\n  generate_target_reference(target)::\n    local alias_quote = std.extVar(\'_aq\');\n    std.join(\'.\', std.map(function(x) alias_quote + x + alias_quote, std.filter(function(x) x != null, [\n      if std.objectHas(target, \'database\') then target.database else null,\n      if std.objectHas(target, \'schema\') then target.schema else null,\n      target.table,\n    ]))),\n}'
       }
 
-      monaco.languages.jsonnet.jsonnetDefaults.setDiagnosticsOptions({
-        validate: true,
-        allowComments: true,
+    let schemas = [
+      {
+        "fileMatch": [
+          "*.model.jsonnet"
+        ],
+        // "schema": {
+        //   "$ref": "https://app.rakam.io/schema/model.schema.json"
+        // },
+        "uri": "https://app.rakam.io/schema/model.schema.json"
+      },
+      {
+        "fileMatch": [
+          "*.models.jsonnet"
+        ],
+        "schema": {
+          "type": "array",
+          "items": {
+            "$ref": "https://app.rakam.io/schema/model.schema.json"
+          }
+        },
+        "uri": "https://app.rakam.io/schema/models.schema.json"
+      },
+      {
+        "fileMatch": [
+          "_config.jsonnet"
+        ],
+        // "schema": {
+        //   "$ref": "https://app.rakam.io/schema/config.schema.json"
+        // },
+        "uri": "https://app.rakam.io/schema/config.schema.json"
+      },
+      {
+        "uri": "https://app.rakam.io/schema/rakam_api_schema.json",
+        "fileMatch": [
+          "common_schema.libsonnet"
+        ],
+        // "schema": {
+        //   "$ref": "https://app.rakam.io/schema/rakam_api_schema.json"
+        // }
+      },
+      {
+        "uri": "https://app.rakam.io/schema/rakam_api_schema.json#multiple",
+        "fileMatch": [
+          "custom_schema.libsonnet"
+        ],
+        "schema": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "https://app.rakam.io/schema/rakam_api_schema.json"
+          }
+        }
+      }
+    ]
+
+    // monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
+    //   validate: true,
+    //   schemas: schemas
+    // })
+
+    monaco.languages.jsonnet.jsonnetDefaults.setDiagnosticsOptions({
+      validate: true,
+      allowComments: true,
         enableSchemaRequest: true,
         libraries: libraries,
         extVars: extVars,
         compilerUrl: '/test/main.wasm',
-        schemas: schema.map(item => {
-          return {
-            fileMatch: item.fileMatch.map(v => `${v}net`),
-            schema: item.schema,
-            uri: item.uri
-          }
-        })
+        schemas: schemas
       })
+
+    // monaco.languages.registerCodeActionProvider("jsonnet", {
+    //   provideCodeActions: (
+    //     model /**ITextModel*/,
+    //     range /**Range*/,
+    //     context /**CodeActionContext*/,
+    //     token /**CancellationToken*/
+    //   ) => {
+    //     return {
+    //       actions: [
+    //         {
+    //           title: `Preview compiled json`,
+    //           diagnostics: context.markers,
+    //           kind: "quickfix",
+    //           isPreferred: true
+    //         }
+    //       ],
+    //       dispose: () => {}
+    //     }
+    //   }
+    // });
 
       const models = {}
       Object
@@ -194,11 +279,9 @@
         const uri = monaco.Uri.from({path: file, scheme: 'git'})
         models[file] = monaco.editor.createModel(files[file], null, uri)
       })
-      console.log(models)
-      window.models = models
 
-      const editor = monaco.editor.create(document.getElementById('container'), {
-        model: models['custom_events.models.jsonnet'],
+    const editor = monaco.editor.create(document.getElementById('container'), {
+        model: models['test.model.jsonnet'],
         theme: 'vs-dark',
       })
 
@@ -210,11 +293,11 @@
       //   })
       // })
 
-      var commandId = editor.addCommand(0, function () {
-        // services available in `ctx`
-        alert('my command is executing!')
-
-      }, '')
+      // var commandId = editor.addCommand(0, function () {
+      //   // services available in `ctx`
+      //   alert('my command is executing!')
+      //
+      // }, '')
 
       // monaco.languages.registerCodeLensProvider('jsonnet', {
       //   provideCodeLenses: function (model, token) {

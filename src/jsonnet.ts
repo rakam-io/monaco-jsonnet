@@ -20,9 +20,11 @@ export class JsonnetError {
     }
 }
 
-export interface BaseMenuItem {
-    title: string;
-    icon: string;
+if (!WebAssembly.instantiateStreaming) { // polyfill
+    WebAssembly.instantiateStreaming = async (resp, importObject) => {
+        const source = await (await resp).arrayBuffer();
+        return await WebAssembly.instantiate(source, importObject);
+    };
 }
 
 export default class JsonnetVM {
@@ -32,12 +34,6 @@ export default class JsonnetVM {
     constructor(compilerUrl) {
         this.compilerCache = new LruCache()
         const go = new Go();
-        if (!WebAssembly.instantiateStreaming) { // polyfill
-            WebAssembly.instantiateStreaming = async (resp, importObject) => {
-                const source = await (await resp).arrayBuffer();
-                return await WebAssembly.instantiate(source, importObject);
-            };
-        }
 
         this.loadPromise = WebAssembly.instantiateStreaming(fetch(compilerUrl), go.importObject)
             .then(result => {
@@ -48,10 +44,10 @@ export default class JsonnetVM {
             })
     }
 
-    format(content: string): Promise<string> {
+    format(file: string, content: string): Promise<string> {
         return this.loadPromise.then(() => {
             // @ts-ignore
-            return self.format("test.jsonnet", content);
+            return self.format(file, content);
         })
     }
 
@@ -95,11 +91,10 @@ export default class JsonnetVM {
             throw Error("compiler is not loaded!")
         }
         // @ts-ignore
-        let value = self.findLocationFromJsonPath(fileName, content, path, failSafe);
-        return value;
+        return self.findLocationFromJsonPath(fileName, content, path, failSafe);
     }
 
-    getJsonPathFromLocation(content: string, line: number, character: number): Array<string | number> {
+    getJsonPathFromLocation(content: string, line: number, character: number): NodeLocation {
         // @ts-ignore
         if (self.getJsonPathFromLocation == null) {
             throw Error("compiler is not loaded!")
@@ -112,6 +107,12 @@ export default class JsonnetVM {
     getLastOutput(path: string): KeyValuePair {
         return this.compilerCache.values.get(path);
     }
+}
+
+interface NodeLocation {
+    type: string;
+    location: jsonService.Range;
+    path: Array<string | number>
 }
 
 interface KeyValuePair {

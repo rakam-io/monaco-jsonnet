@@ -562,6 +562,7 @@
             "examples": [
                 {
                     "dimensionName": {
+                        "type": "string",
                         "column": "campaign_name"
                     }
                 }

@@ -11,7 +11,7 @@ import Uri = monaco.Uri;
 import IDisposable = monaco.IDisposable;
 import ILanguage = monaco.languages.IMonarchLanguage;
 import JsonnetWorker = monaco.languages.jsonnet.JsonnetWorker;
-import {WorkerAccessor} from "./languageFeatures";
+import {DeclarationProvider, WorkerAccessor} from "./languageFeatures";
 
 let worker: WorkerAccessor;
 
@@ -47,7 +47,7 @@ export function setupMode(defaults: LanguageServiceDefaultsImpl): IDisposable {
             providers.push(monaco.languages.registerDocumentFormattingEditProvider(languageId, new languageFeatures.DocumentFormattingEditProvider(worker)));
         }
 
-        providers.push(monaco.languages.registerHoverProvider(languageId, new languageFeatures.HoverAdapter(worker)));
+        monaco.languages.registerDefinitionProvider(languageId, new DeclarationProvider(worker, monaco.editor.createModel))
     }
 
     registerProviders();

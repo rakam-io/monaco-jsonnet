@@ -13,15 +13,25 @@ import ExtCodes = monaco.languages.jsonnet.ExtCodes;
 import TlaVars = monaco.languages.jsonnet.TlaVars;
 import JsonnetVM, {FileMap, JsonnetError} from './jsonnet';
 import * as Json from 'jsonc-parser';
-
 import * as jsonService from 'vscode-json-languageservice';
+import {JsonnetHover} from "./service/jsonnetHover";
+import {JsonnetComplete} from "./service/jsonnetComplete";
 
 let defaultSchemaRequestService;
 if (typeof fetch !== 'undefined') {
     defaultSchemaRequestService = function (url) {
-        return fetch(url).then(response => response.text())
+        return fetch(url).then(response => {
+            return response.text()
+        })
     };
 }
+
+type Definition = {
+    range: jsonService.Range,
+    content: string
+}
+
+export type SchemaFetcher = (uri: string, jsonPath: (Array<string | number> | undefined)) => Thenable<jsonService.JSONSchema[]>
 
 const extensions = ['.jsonnet', '.libsonnet']
 
@@ -62,6 +72,8 @@ export class JsonnetWorkerImpl implements JsonnetWorker {
     private _languageId: string;
     private _schemaRequestService: jsonService.SchemaRequestService;
     private jsonnet: JsonnetVM;
+    private hoverService: JsonnetHover;
+    private completeService: JsonnetComplete;
 
     constructor(ctx: IWorkerContext, createData: ICreateData) {
         this._ctx = ctx;
@@ -75,13 +87,42 @@ export class JsonnetWorkerImpl implements JsonnetWorker {
         });
         this._languageService.configure(this._languageSettings);
         this.jsonnet = new JsonnetVM(this._languageSettings.compilerUrl)
+        this.hoverService = new JsonnetHover(this._languageService, PromiseAdapter, this.jsonnet, this.getSchema)
+        this.completeService = new JsonnetComplete(this._languageService, PromiseAdapter, this.jsonnet, this.getSchema)
+    }
 
-        // const textDocument = jsonService.TextDocument.create(this.toPath(monaco.Uri.parse("git://a.model.jsonnet")), this._languageId, 1, "{}");
-        // let jsonDocument = {root: null, getNodeFromOffset: null, getMatchingSchemas: function(data) {
-        //         return [{schema: data, inverted: false}]
-        //     }};
-        // this._languageService.getMatchingSchemas(textDocument, jsonDocument, null).then(data => {
-        // })
+    getSchema(uri: string, jsonPath: Array<string | number> | undefined): Thenable<jsonService.JSONSchema[]> {
+        const textDocument = jsonService.TextDocument.create(uri, this._languageId, 1, "{}");
+        let jsonDocument = {
+            root: null, getNodeFromOffset: null, getMatchingSchemas: function (data) {
+                return [{schema: data, inverted: false}]
+            }
+        };
+
+        return this._languageService.getMatchingSchemas(textDocument, jsonDocument, null).then(schemas => {
+            return schemas.map(matchingSchema => {
+                let schema = matchingSchema.schema
+                if(jsonPath != null && schema != null) {
+                    for (let i = 0; i < jsonPath.length; i++) {
+                        const path = jsonPath[i]
+                        if (schema.type === 'object') {
+                            const ref = schema.properties != null ? schema.properties[path] : schema.additionalProperties
+                            if (typeof (ref) !== 'boolean') {
+                                schema = ref
+                            }
+                        } else if (schema.type === 'array') {
+                            const ref = schema.items
+                            if (!Array.isArray(ref) && typeof (ref) !== 'boolean') {
+                                schema = schema.items as jsonService.JSONSchema
+                            }
+                        }
+                    }
+                }
+                return schema
+            }).filter(schema => {
+                return schema != null
+            })
+        })
     }
 
     private getDiagnosticFromJsonnetError(error: JsonnetError) {
@@ -111,11 +152,12 @@ export class JsonnetWorkerImpl implements JsonnetWorker {
         let compileXhr = this.jsonnet.compile(path, documents,
             this._languageSettings.extVars || {},
             this._languageSettings.tlaVars || {},
-            this._languageSettings.libraries).then(result => {
-            textDocument = jsonService.TextDocument.create(this.toPath(model.uri), this._languageId, model.version, result);
-            jsonDocument = this._languageService.parseJSONDocument(textDocument);
-            return this._languageService.doValidation(textDocument, jsonDocument);
-        })
+            this._languageSettings.libraries)
+            .then(result => {
+                textDocument = jsonService.TextDocument.create(this.toPath(model.uri), this._languageId, model.version, result);
+                jsonDocument = this._languageService.parseJSONDocument(textDocument);
+                return this._languageService.doValidation(textDocument, jsonDocument);
+            })
 
         return compileXhr.then(data => {
             let diagnostics = data.map(diagnosis => {
@@ -125,21 +167,24 @@ export class JsonnetWorkerImpl implements JsonnetWorker {
                 // let endNode = jsonDocument.getNodeFromOffset(textDocument.offsetAt(range.end));
                 let startPath = Json.getNodePath(startNode)
                 let range, message;
+
                 if (startPath.length === 0) {
-                    range = jsonService.Range.create(0, 0, 0, 1);
+                    range = jsonService.Range.create(0, 0, Number.MAX_VALUE, Number.MAX_VALUE);
                     message = diagnosis.message;
                 } else {
                     range = this.jsonnet.getLocationOfPath(path, documents[path], startPath, false)
                     if (range == null) {
                         range = jsonService.Range.create(0, 0, 0, 1);
                     }
+                    // else if(range.end.line - range.start.line > 1) {
+                    //     range = jsonService.Range.create(range.start.line, range.start.character, range.start.line, 0);
+                    // }
 
                     // let value = Json.getNodeValue(startNode);
                     message = diagnosis.message + ` (${startPath.join(".")})`
                 }
-                // TODO
-                // return jsonService.Diagnostic.create(range, message, 1, diagnosis.code, diagnosis.source, diagnosis.relatedInformation)
-                return jsonService.Diagnostic.create(range, message, 1, 1, diagnosis.source, diagnosis.relatedInformation)
+
+                return jsonService.Diagnostic.create(range, message, 2, 1, diagnosis.source, diagnosis.relatedInformation)
             });
             return diagnostics
         }).catch(e => {
@@ -158,46 +203,19 @@ export class JsonnetWorkerImpl implements JsonnetWorker {
     doComplete(uri: monaco.Uri, position: jsonService.Position): Thenable<jsonService.CompletionList> {
         const uriPath = this.toPath(uri)
         const model = this._ctx.getMirrorModels().find(model => this.toPath(model.uri) === uriPath)
-
-        let lastOutput = this.jsonnet.getLastOutput(uri.path);
-        if(lastOutput == null) {
-            return Promise.resolve({isIncomplete: false, items: []})
-        }
-
-        const json = lastOutput.json.replace(/\n/g, '')
-        const document = jsonService.TextDocument.create(uriPath, this._languageId, model.version, json);
-        let jsonDocument = this._languageService.parseJSONDocument(document);
-        let jsonPathFromLocation = this.jsonnet.getJsonPathFromLocation(lastOutput.jsonnet, position.line, position.character);
-        if(!jsonPathFromLocation) {
-            return Promise.resolve({isIncomplete: false, items: []})
-        }
-        let node = Json.findNodeAtLocation(jsonDocument.root, jsonPathFromLocation);
-        let jsonPos = {character: node.offset, line: 0};
-        return this._languageService.doComplete(document, jsonPos, jsonDocument)
+        return this.completeService.doComplete(model, position)
     }
 
     doHover(uri: monaco.Uri, position: jsonService.Position): Thenable<jsonService.Hover> {
         const uriPath = this.toPath(uri)
-        const model = this._ctx.getMirrorModels().find(model => this.toPath(model.uri) === uriPath)
-        let value = model.getValue();
-
         let data = this.jsonnet.getLastOutput(uri.path);
-        if(data == null) {
+        if (data == null) {
             return null
         }
 
-        const json = data.json.replace(/\n/g, '')
-        const document = jsonService.TextDocument.create(uriPath, this._languageId, model.version, json);
-        let jsonDocument = this._languageService.parseJSONDocument(document);
-        let jsonPathFromLocation = this.jsonnet.getJsonPathFromLocation(value, position.line, position.character);
-        if(jsonPathFromLocation == null) {
-            return null
-        }
-        let node = Json.findNodeAtLocation(jsonDocument.root, jsonPathFromLocation);
-        let jsonPos = {character: node.offset, line: 0};
-        return this._languageService.doHover(document, jsonPos, jsonDocument).then(d => {
-            return {contents: d.contents, range: {start: {line: position.line, character: position.character - 1}, end: {line: position.line, character: position.character + 1}}}
-        })
+        const textDocument = jsonService.TextDocument.create(uriPath, this._languageId, 1, data.jsonnet);
+
+        return this.hoverService.doHover(textDocument, position)
     }
 
     private toPath(uri: monaco.Uri): string {
@@ -214,7 +232,7 @@ export class JsonnetWorkerImpl implements JsonnetWorker {
         const uriPath = this.toPath(uri)
         const model = this._ctx.getMirrorModels().find(model => this.toPath(model.uri) === uriPath)
         let content = model.getValue();
-        return this.jsonnet.format(content).then(result => {
+        return this.jsonnet.format(uri.path, content).then(result => {
             return [jsonService.TextEdit.replace(jsonService.Range.create(0, 0, Number.MAX_VALUE, Number.MAX_VALUE), result)]
         })
     }
@@ -228,7 +246,7 @@ export class JsonnetWorkerImpl implements JsonnetWorker {
 
         return this.jsonnet.getLocationOfPaths(filePath, model.getValue(), jsonPaths).then(locations => {
             return locations.map(locationOfNode => {
-                if(locationOfNode == null) {
+                if (locationOfNode == null) {
                     return null
                 } else {
                     return {
@@ -238,6 +256,33 @@ export class JsonnetWorkerImpl implements JsonnetWorker {
                 }
 
             })
+        })
+    }
+
+    getDefinition(uri: monaco.Uri, position: jsonService.Position): Promise<Definition> {
+        const path = this.toPath(uri)
+        const model = this._ctx.getMirrorModels().find(model => this.toPath(model.uri) === path)
+
+        return this.compile(uri).then(content => {
+            let location = this.jsonnet.getJsonPathFromLocation(model.getValue(), position.line, position.character);
+
+            const textDocument = jsonService.TextDocument.create(path, this._languageId, model.version, content);
+            let jsonDocument = this._languageService.parseJSONDocument(textDocument);
+
+            let range;
+            if(location.path.length > 0) {
+                let node = Json.findNodeAtLocation(jsonDocument.root, location.path);
+                if(node != null) {
+                    range = jsonService.Range.create(textDocument.positionAt(node.offset), textDocument.positionAt(node.offset + node.length));
+                }
+            }
+
+            if(range == null) {
+                let noPosition = jsonService.Position.create(0, 0);
+                range = jsonService.Range.create(noPosition, noPosition);
+            }
+
+            return {content, range: range}
         })
     }
 
@@ -255,6 +300,7 @@ export class JsonnetWorkerImpl implements JsonnetWorker {
             this._languageSettings.tlaVars || {},
             this._languageSettings.libraries)
     }
+
 }
 
 export interface ICreateData {

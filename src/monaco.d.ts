@@ -107,5 +107,6 @@ declare module monaco.languages.jsonnet {
 	export interface JsonnetWorker {
 		getJsonPaths(uri : Uri, ...jsonPath: Array<string | number>[]) : Promise<Array<monaco.IRange>>;
 		compile(uri : Uri) : Promise<string>
+		getSchema(uri : string, jsonPath: Array<string | number> | undefined): Thenable<any[]>
 	}
 }

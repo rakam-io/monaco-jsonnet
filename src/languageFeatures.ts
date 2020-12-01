@@ -3,17 +3,18 @@
 import {LanguageServiceDefaultsImpl} from './monaco.contribution';
 
 import * as jsonService from 'vscode-json-languageservice';
+import {JsonnetWorkerImpl} from "./jsonnetWorker";
 import Uri = monaco.Uri;
 import Thenable = monaco.Thenable;
 import IDisposable = monaco.IDisposable;
 import CancellationToken = monaco.CancellationToken;
 import Position = monaco.Position;
 import Range = monaco.Range;
-import {JsonnetWorkerImpl} from "./jsonnetWorker";
+import ITextModel = monaco.editor.ITextModel;
 
 
 export interface WorkerAccessor {
-	(...more: Uri[]): Promise<JsonnetWorkerImpl>
+    (...more: Uri[]): Promise<JsonnetWorkerImpl>
 }
 
 export class DiagnosticsAdapter {
@@ -87,7 +88,7 @@ export class DiagnosticsAdapter {
 
     private _resetSchema(resource: Uri): void {
         this._worker().then(worker => {
-			worker.resetSchema(resource.toString());
+            worker.resetSchema(resource.toString());
         });
     }
 
@@ -185,27 +186,54 @@ function toRange(range: jsonService.Range): Range {
     return new Range(range.start.line + 1, range.start.character + 1, range.end.line + 1, range.end.character + 1);
 }
 
+export class DeclarationProvider implements monaco.languages.DefinitionProvider {
+    private _worker: WorkerAccessor;
+    private modelCreator: any;
+
+    constructor(worker: WorkerAccessor, modelCreator: (value: string, language?: string, uri?: Uri) => ITextModel) {
+        this._worker = worker
+        this.modelCreator = modelCreator
+    }
+
+    provideDefinition(model: monaco.editor.ITextModel, position: Position, token: CancellationToken): monaco.languages.ProviderResult<monaco.languages.Location | monaco.languages.LocationLink[]> {
+        return this._worker().then(worker => {
+            return worker.getDefinition(model.uri, fromPosition(position));
+        }).then(result => {
+            let uri = monaco.Uri.from({path: model.uri.path + '.json', scheme: 'preview'});
+            let previewModel = monaco.editor.getModel(uri);
+            if (previewModel == null) {
+                this.modelCreator(result.content, 'json', uri);
+            } else {
+                previewModel.setValue(result.content)
+            }
+
+            return {
+                uri: uri,
+                range: toRange(result.range)
+            };
+        })
+    }
+}
+
 export class HoverAdapter implements monaco.languages.HoverProvider {
 
     constructor(private _worker: WorkerAccessor) {
+        this._worker = _worker
     }
 
     provideHover(model: monaco.editor.IReadOnlyModel, position: Position, token: CancellationToken): Thenable<monaco.languages.Hover> {
         let resource = model.uri;
 
         return this._worker(resource).then(worker => {
-            // @ts-ignore
-            const workerImpl = worker as JsonnetWorkerImpl
-            return workerImpl.doHover(resource, fromPosition(position));
+            return worker.doHover(resource, fromPosition(position));
         }).then(info => {
             if (!info) {
                 return;
             }
-            let r = <monaco.languages.Hover>{
+            return <monaco.languages.Hover>{
                 range: toRange(info.range),
                 contents: toMarkedStringArray(info.contents)
             };
-            return r;
         });
     }
 }
@@ -214,24 +242,42 @@ function toCompletionItemKind(kind: number): monaco.languages.CompletionItemKind
     let mItemKind = monaco.languages.CompletionItemKind;
 
     switch (kind) {
-        case jsonService.CompletionItemKind.Text: return mItemKind.Text;
-        case jsonService.CompletionItemKind.Method: return mItemKind.Method;
-        case jsonService.CompletionItemKind.Function: return mItemKind.Function;
-        case jsonService.CompletionItemKind.Constructor: return mItemKind.Constructor;
-        case jsonService.CompletionItemKind.Field: return mItemKind.Field;
-        case jsonService.CompletionItemKind.Variable: return mItemKind.Variable;
-        case jsonService.CompletionItemKind.Class: return mItemKind.Class;
-        case jsonService.CompletionItemKind.Interface: return mItemKind.Interface;
-        case jsonService.CompletionItemKind.Module: return mItemKind.Module;
-        case jsonService.CompletionItemKind.Property: return mItemKind.Property;
-        case jsonService.CompletionItemKind.Unit: return mItemKind.Unit;
-        case jsonService.CompletionItemKind.Value: return mItemKind.Value;
-        case jsonService.CompletionItemKind.Enum: return mItemKind.Enum;
-        case jsonService.CompletionItemKind.Keyword: return mItemKind.Keyword;
-        case jsonService.CompletionItemKind.Snippet: return mItemKind.Snippet;
-        case jsonService.CompletionItemKind.Color: return mItemKind.Color;
-        case jsonService.CompletionItemKind.File: return mItemKind.File;
-        case jsonService.CompletionItemKind.Reference: return mItemKind.Reference;
+        case jsonService.CompletionItemKind.Text:
+            return mItemKind.Text;
+        case jsonService.CompletionItemKind.Method:
+            return mItemKind.Method;
+        case jsonService.CompletionItemKind.Function:
+            return mItemKind.Function;
+        case jsonService.CompletionItemKind.Constructor:
+            return mItemKind.Constructor;
+        case jsonService.CompletionItemKind.Field:
+            return mItemKind.Field;
+        case jsonService.CompletionItemKind.Variable:
+            return mItemKind.Variable;
+        case jsonService.CompletionItemKind.Class:
+            return mItemKind.Class;
+        case jsonService.CompletionItemKind.Interface:
+            return mItemKind.Interface;
+        case jsonService.CompletionItemKind.Module:
+            return mItemKind.Module;
+        case jsonService.CompletionItemKind.Property:
+            return mItemKind.Property;
+        case jsonService.CompletionItemKind.Unit:
+            return mItemKind.Unit;
+        case jsonService.CompletionItemKind.Value:
+            return mItemKind.Value;
+        case jsonService.CompletionItemKind.Enum:
+            return mItemKind.Enum;
+        case jsonService.CompletionItemKind.Keyword:
+            return mItemKind.Keyword;
+        case jsonService.CompletionItemKind.Snippet:
+            return mItemKind.Snippet;
+        case jsonService.CompletionItemKind.Color:
+            return mItemKind.Color;
+        case jsonService.CompletionItemKind.File:
+            return mItemKind.File;
+        case jsonService.CompletionItemKind.Reference:
+            return mItemKind.Reference;
     }
     return mItemKind.Property;
 }
@@ -266,7 +312,7 @@ export class CompletionAdapter implements monaco.languages.CompletionItemProvide
     }
 
     public get triggerCharacters(): string[] {
-        return [' ', ':'];
+        return [' ', ':', '\n', "'"];
     }
 
     provideCompletionItems(model: monaco.editor.IReadOnlyModel, position: Position, context: monaco.languages.CompletionContext, token: CancellationToken): Thenable<monaco.languages.CompletionList> {
